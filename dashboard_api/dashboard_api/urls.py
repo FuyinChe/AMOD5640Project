@@ -21,14 +21,22 @@ from django.http import JsonResponse
 
 from rest_framework_simplejwt.views import (TokenObtainPairView,
                                             TokenRefreshView)
+#test csrf exempt
+from django.views.decorators.csrf import csrf_exempt
 
 def root_view(request):
     return JsonResponse({"message": "Dashboard API is running."})
+
+#test csrf exempt
+# @csrf_exempt # type: ignore
+# def test_cors(request):
+#     return JsonResponse({'message': 'CORS test successful'})
 
 urlpatterns = [
     path('', root_view),  # Root endpoint
     path('admin/', admin.site.urls),
     path('api/', include('core.urls')),
     path('api/token',TokenObtainPairView.as_view(), name= 'token_obtain_pair'),
-    path('api/token/refresh', TokenRefreshView.as_view(), name='token_refresh')
+    path('api/token/refresh', TokenRefreshView.as_view(), name='token_refresh'),
+    # path('test-cors/', test_cors),       # <-- add this for CORS testing
 ]
