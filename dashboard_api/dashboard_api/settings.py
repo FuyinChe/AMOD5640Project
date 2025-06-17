@@ -23,10 +23,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-kwjcewt0!1zx#0b0zfoz_(-erfy31z#z()*!j=w5h1oz$9-efs'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# DEBUG = True
 
-ALLOWED_HOSTS = []
+DEBUG = False
 
+
+# ALLOWED_HOSTS = []
+# or at minimum:
+ALLOWED_HOSTS = ['trentfarmdata.org', 'www.trentfarmdata.org','localhost']
 
 # Application definition
 
@@ -61,7 +65,7 @@ ROOT_URLCONF = 'dashboard_api.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],#add the templates folder here
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -158,12 +162,22 @@ REST_FRAMEWORK = {
 
 # #Allow cors
 CORS_ALLOWED_ORIGINS = [
+    "https://www.trentfarmdata.org",
+    "https://trentfarmdata.org",
+    "http://localhost",
     "http://localhost:4200",
 ]
+
+
+
 
 # # if you want to allow all, change to true,
 # but never use it for production server
 # CORS_ALLOW_ALL_ORIGINS = True
+
+"""
+if you want to allow all, change to true, but never use it for production server CORS_ALLOW_ALL_ORIGINS = True
+"""
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -188,3 +202,14 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+
+
+
+# #set email information
+# EMAIL_BACKEND = config('EMAIL_BACKEND')
+# EMAIL_HOST = config('EMAIL_HOST')
+# EMAIL_PORT = config('EMAIL_PORT')
+# EMAIL_USE_TLS = config('EMAIL_USE_TLS')
+# EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+# EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')

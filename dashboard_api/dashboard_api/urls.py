@@ -32,6 +32,10 @@ def root_view(request):
 # def test_cors(request):
 #     return JsonResponse({'message': 'CORS test successful'})
 
+handler404 = 'dashboard_api.views.custom_page_not_found_view'
+handler500 = 'dashboard_api.views.custom_error_view'
+
+
 urlpatterns = [
     path('', root_view),  # Root endpoint
     path('admin/', admin.site.urls),
