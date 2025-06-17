@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /opt/app/dashboard_api
 
 # Copy requirements.txt to working directory
-COPY dashboard_api/requirements.txt .
+COPY requirements.txt .
 
 # Create a virtual environment and install dependencies
 RUN python -m venv --copies /opt/venv \
