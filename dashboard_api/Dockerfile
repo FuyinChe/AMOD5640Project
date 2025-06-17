@@ -1,33 +1,22 @@
-# Use base Python 3.12 slim image
-FROM python:3.12-slim
+# Use official Python base image
+FROM python:3.11-slim
 
-# Install build dependencies (required for mysqlclient)
-RUN apt-get update && apt-get install -y \
-    gcc \
-    default-libmysqlclient-dev \
-    && rm -rf /var/lib/apt/lists/*    
+# Set working directory
+WORKDIR /app
 
-# Set working directory to Django project root
-WORKDIR /opt/app/dashboard_api
-
-# Copy requirements.txt to working directory
+# Copy requirements file first for caching
 COPY requirements.txt .
 
-# Create a virtual environment and install dependencies
-RUN python -m venv --copies /opt/venv \
-    && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+# Install system dependencies (if needed) and Python packages
+RUN apt-get update && apt-get install -y build-essential \
+    && pip install --no-cache-dir -r requirements.txt \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Activate virtual environment
-ENV PATH="/opt/venv/bin:$PATH"
+# Copy the rest of your project files
+COPY . .
 
-# Copy all project files into the working directory
-COPY dashboard_api/ .
+# Expose port Railway expects
+EXPOSE 8000
 
-# Set Django settings module (if needed)
-ENV DJANGO_SETTINGS_MODULE=dashboard_api.settings
-
-# Set application port for Railway
-ENV PORT=8000
-
-# Run Django server
+# Command to run your Django app
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
