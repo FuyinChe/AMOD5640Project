@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import random
-
+from rest_framework.permissions import AllowAny
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -104,7 +104,15 @@ class AdminDashboardView(APIView):
 
 
 class EnvironmentalDataList(generics.ListAPIView):
-    queryset = EnvironmentalData.objects.all().order_by('-Year', '-Month', '-Day')[:100]#return 100
+    queryset = EnvironmentalData.objects.all().order_by('-Year', '-Month', '-Day')[:1000]#return 1000
     serializer_class = EnvironmentalDataSerializer
 
 
+
+class SampleEnvironmentalDataList(generics.ListAPIView):
+    permission_classes = [AllowAny]  # No authentication required
+    serializer_class = EnvironmentalDataSerializer
+    
+    def get_queryset(self):
+        # Get 40 random records from real data
+        return EnvironmentalData.objects.all().order_by('-Year', '-Month', '-Day')[:40]
