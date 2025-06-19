@@ -30,7 +30,13 @@ DEBUG = False
 
 # ALLOWED_HOSTS = []
 # or at minimum:
-ALLOWED_HOSTS = ['trentfarmdata.org', 'www.trentfarmdata.org','localhost','127.0.0.1', '[::1]']
+ALLOWED_HOSTS = ['trentfarmdata.org', 
+                 'www.trentfarmdata.org',
+                 'localhost',
+                 '127.0.0.1', 
+                 '[::1]',
+                 '.vercel.app',  # <-- Add this if your frontend is hosted on Vercel
+                ]
 
 # Application definition
 
@@ -160,20 +166,20 @@ REST_FRAMEWORK = {
     ),
 }
 
-# #Allow cors
-# CORS_ALLOWED_ORIGINS = [
-#     "https://www.trentfarmdata.org",
-#     "https://trentfarmdata.org",
-#     "http://localhost",
-#     "http://localhost:4200",
-# ]
+#Allow cors
+CORS_ALLOWED_ORIGINS = [
+    "https://www.trentfarmdata.org",
+    "https://trentfarmdata.org",
+    "http://localhost",
+    "http://localhost:4200",
+]
 
 
 
 
 # # if you want to allow all, change to true,
 # but never use it for production server
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_ALL_ORIGINS = True
 
 """
 if you want to allow all, change to true, but never use it for production server CORS_ALLOW_ALL_ORIGINS = True
