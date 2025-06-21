@@ -8,6 +8,7 @@ from rest_framework import status
 from django.contrib.auth.models import User
 from .permissions import IsAdmin
 from .models import Customer
+from django.db.models import Q
 
 from django.contrib.auth.hashers import make_password
 
@@ -104,7 +105,7 @@ class AdminDashboardView(APIView):
 
 
 class EnvironmentalDataList(generics.ListAPIView):
-    queryset = EnvironmentalData.objects.all().order_by('-Year', '-Month', '-Day')[:1000]#return 1000
+    queryset = EnvironmentalData.objects.all().order_by('-Year', '-Month', '-Day')[:3000]#return 3000
     serializer_class = EnvironmentalDataSerializer
 
 
@@ -113,6 +114,21 @@ class SampleEnvironmentalDataList(generics.ListAPIView):
     permission_classes = [AllowAny]  # No authentication required
     serializer_class = EnvironmentalDataSerializer
     
+
+    # return 40 random value with filtered data
     def get_queryset(self):
-        # Get 40 random records from real data
-        return EnvironmentalData.objects.all().order_by('-Year', '-Month', '-Day')[:40]
+        print(EnvironmentalData.objects.filter(
+                    SnowDepth_cm__isnull=False,
+                    RelativeHumidity_Pct__isnull=False,
+                    ShortwaveRadiation_Wm2__isnull=False,
+                    Rainfall_mm__isnull=False,
+                    SoilTemperature_5cm_degC__isnull=False,
+                    WindSpeed_ms__isnull=False,
+                ).count()
+            )
+        return EnvironmentalData.objects.filter(
+            Q(SnowDepth_cm__isnull=False) &
+            Q(RelativeHumidity_Pct__isnull=False) &           
+            Q(Rainfall_mm__isnull=False) &
+            Q(SoilTemperature_5cm_degC__isnull=False) 
+        ).order_by('-Year', '-Month', '-Day')[:40]
