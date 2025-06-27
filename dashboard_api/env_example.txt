@@ -1,0 +1,25 @@
+# Email Configuration for Trent Farm Data
+# ======================================
+
+# SendGrid SMTP Settings
+EMAIL_HOST=smtp.sendgrid.net
+EMAIL_PORT=587
+EMAIL_HOST_USER=apikey
+EMAIL_HOST_PASSWORD=your-sendgrid-api-key-here
+DEFAULT_FROM_EMAIL=no-reply@trentfarmdata.org
+
+# Test Email Address (for receiving test emails)
+# ✅ All valid email addresses are now accepted (no domain restrictions)
+TEST_EMAIL_ADDRESS=your-email@example.com
+
+# Django Settings (if needed)
+DEBUG=True
+SECRET_KEY=your-django-secret-key-here
+DATABASE_URL=sqlite:///db.sqlite3
+
+# Optional: Gmail SMTP Settings (alternative to SendGrid)
+# EMAIL_HOST=smtp.gmail.com
+# EMAIL_PORT=587
+# EMAIL_HOST_USER=your-gmail@gmail.com
+# EMAIL_HOST_PASSWORD=your-gmail-app-password
+# DEFAULT_FROM_EMAIL=your-gmail@gmail.com 
