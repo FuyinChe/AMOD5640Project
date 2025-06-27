@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.db import models
 from datetime import datetime, timedelta
 import random
+from django.utils import timezone
 
 # generate random verification code
 def generate_verification_code():
@@ -16,10 +17,17 @@ class Customer(models.Model):
 
     def set_verification_code(self):
         self.verification_code = generate_verification_code()
-        self.code_expires_at = datetime.now() + timedelta(minutes=10)
+        self.code_expires_at = timezone.now() + timedelta(minutes=10)
         self.save()
 
+# email verification code
+class EmailVerificationCode(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    def is_expired(self):
+        return timezone.now() > (self.created_at + timedelta(minutes=10))
 
 #define environmental data class
 class EnvironmentalData(models.Model):
