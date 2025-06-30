@@ -176,10 +176,13 @@ CORS_ALLOWED_ORIGINS = [
     "https://trentfarmdata.org",
     "http://localhost",
     "http://localhost:4200",
+    "https://backend.trentfarmdata.org",
 ]
 
-
-
+# allow all origins under trentfarmdata.org
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://([a-zA-Z0-9-]+\\.)*trentfarmdata\\.org$",
+]
 
 # # if you want to allow all, change to true,
 # but never use it for production server
