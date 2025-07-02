@@ -27,10 +27,11 @@ from .serializers import EnvironmentalDataSerializer
 # Set up logger
 logger = logging.getLogger(__name__)
 
+from .email_templates import get_verification_email_content
 
 #send email with smtp
-def send_email_with_smtp(to_email, subject, message, email_config=None):
-    """Send email using explicit SMTP connection"""
+def send_email_with_smtp(to_email, subject, message, html_message=None, email_config=None):
+    """Send email using explicit SMTP connection, supporting both plain text and HTML."""
     try:
         # Use provided config or default settings
         if email_config:
@@ -54,13 +55,15 @@ def send_email_with_smtp(to_email, subject, message, email_config=None):
         print(f"DEBUG: EMAIL_HOST_PASSWORD = {email_password[:4]}..." if email_password else "Password: NOT SET")
         
         # Create message
-        msg = MIMEMultipart()
+        msg = MIMEMultipart('alternative')
         msg['From'] = from_email
         msg['To'] = to_email
         msg['Subject'] = subject
         
         # Add body to email
         msg.attach(MIMEText(message, 'plain'))
+        if html_message:
+            msg.attach(MIMEText(html_message, 'html'))
         
         print("DEBUG: Creating SMTP connection...")
         # Create SMTP session
@@ -187,10 +190,12 @@ class UserRegisterView(APIView):
             # Send verification email
             email_sent = False
             try:
+                subject, text_body, html_body = get_verification_email_content(verification_code, code_expires_at, is_resend=False)
                 success = send_email_with_smtp(
                     email,
-                    'Trent Farm Data - Email Verification Code',
-                    f'Your verification code is: {verification_code}\n\nThis code will expire in 10 minutes.'
+                    subject,
+                    text_body,
+                    html_message=html_body
                 )
                 if success:
                     logger.info(f"Verification email sent successfully to {email}")
@@ -245,10 +250,12 @@ class ResendVerificationCodeView(APIView):
 
         # Send new verification email
         try:
+            subject, text_body, html_body = get_verification_email_content(verification_code, code_expires_at, is_resend=True)
             success = send_email_with_smtp(
                 email,
-                'Trent Farm Data - New Verification Code',
-                f'Your new verification code is: {verification_code}\n\nThis code will expire in 10 minutes.'
+                subject,
+                text_body,
+                html_message=html_body
             )
             if success:
                 logger.info(f"Resend verification email sent successfully to {email}")
