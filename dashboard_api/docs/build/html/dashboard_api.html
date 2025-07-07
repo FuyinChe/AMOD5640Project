@@ -46,7 +46,7 @@
 <li><a class="reference internal" href="#submodules">Submodules</a></li>
 <li><a class="reference internal" href="#module-dashboard_api.asgi">dashboard_api.asgi module</a></li>
 <li><a class="reference internal" href="#module-dashboard_api.settings">dashboard_api.settings module</a><ul>
-<li><a class="reference internal" href="#dashboard_api.settings.CORS_ALLOWED_ORIGINS"><code class="docutils literal notranslate"><span class="pre">CORS_ALLOWED_ORIGINS</span></code></a></li>
+<li><a class="reference internal" href="#dashboard_api.settings.CORS_ALLOWED_ORIGIN_REGEXES"><code class="docutils literal notranslate"><span class="pre">CORS_ALLOWED_ORIGIN_REGEXES</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#module-dashboard_api.urls">dashboard_api.urls module</a><ul>
@@ -105,8 +105,8 @@
 <p>For the full list of settings and their values, see
 <a class="reference external" href="https://docs.djangoproject.com/en/5.2/ref/settings/">https://docs.djangoproject.com/en/5.2/ref/settings/</a></p>
 <dl class="py data">
-<dt class="sig sig-object py" id="dashboard_api.settings.CORS_ALLOWED_ORIGINS">
-<span class="sig-prename descclassname"><span class="pre">dashboard_api.settings.</span></span><span class="sig-name descname"><span class="pre">CORS_ALLOWED_ORIGINS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['http://localhost:4200']</span></em><a class="headerlink" href="#dashboard_api.settings.CORS_ALLOWED_ORIGINS" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="dashboard_api.settings.CORS_ALLOWED_ORIGIN_REGEXES">
+<span class="sig-prename descclassname"><span class="pre">dashboard_api.settings.</span></span><span class="sig-name descname"><span class="pre">CORS_ALLOWED_ORIGIN_REGEXES</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['^https://([a-zA-Z0-9-]+\\\\.)*trentfarmdata\\\\.org$']</span></em><a class="headerlink" href="#dashboard_api.settings.CORS_ALLOWED_ORIGIN_REGEXES" title="Link to this definition"></a></dt>
 <dd><p>if you want to allow all, change to true, but never use it for production server CORS_ALLOW_ALL_ORIGINS = True</p>
 </dd></dl>
 

@@ -32,15 +32,17 @@ DEBUG = True
 # ALLOWED_HOSTS = []
 
 
-ALLOWED_HOSTS = ['*']  # TEMPORARY only for testing
-# # or at minimum:
-# ALLOWED_HOSTS = ['trentfarmdata.org', 
-#                  'www.trentfarmdata.org',
-#                  'localhost',
-#                  '127.0.0.1', 
-#                  '[::1]',
-#                  '.vercel.app',  # <-- Add this if your frontend is hosted on Vercel
-#                 ]
+# ALLOWED_HOSTS = ['*']  # TEMPORARY only for testing
+# For production, use specific hosts:
+ALLOWED_HOSTS = [
+    'trentfarmdata.org', 
+    'www.trentfarmdata.org',
+    'backend.trentfarmdata.org',
+    'localhost',
+    '127.0.0.1', 
+    '[::1]',
+    '.vercel.app',  # <-- Add this if your frontend is hosted on Vercel
+]
 
 # Application definition
 
@@ -53,6 +55,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',#restful api framework
     'rest_framework_simplejwt',
+    'drf_yasg',  # Swagger/OpenAPI documentation
     'core',
     'corsheaders',#solve cors issue
 
