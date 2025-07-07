@@ -25,7 +25,7 @@ from rest_framework_simplejwt.views import (TokenObtainPairView,
 from django.views.decorators.csrf import csrf_exempt
 
 # Import the AdminDocsView from core
-from core.views import AdminDocsView, AdminTestView
+from core.views import AdminTestView
 
 # Swagger/OpenAPI documentation
 from rest_framework import permissions
@@ -63,9 +63,6 @@ urlpatterns = [
     path('api/', include('core.urls')),
     path('api/token',TokenObtainPairView.as_view(), name= 'token_obtain_pair'),
     path('api/token/refresh', TokenRefreshView.as_view(), name='token_refresh'),
-    # Admin-only documentation
-    path('api/docs/', AdminDocsView.as_view(), name='admin-docs'),
-    path('api/docs/<str:path>/', AdminDocsView.as_view(), name='admin-docs-path'),
     # Admin test endpoint
     path('api/admin-test/', AdminTestView.as_view(), name='admin-test'),
     

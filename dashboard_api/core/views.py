@@ -47,7 +47,6 @@ import os
 # Swagger documentation
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from .documentation_views import AdminDocsView
 
 class AdminTestView(APIView):
     """
@@ -112,6 +111,5 @@ __all__ = [
     'AveragedSoilTemperatureView',
     'TestEmailView',
     'TestMultipleEmailView',
-    'AdminDocsView',
     'AdminTestView'
 ] 
