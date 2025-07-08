@@ -19,6 +19,7 @@ from .environmental_views import (
 from .raw_data_views import (
     RawSnowDepthView,
     RawRainfallView,
+    RawHumidityView,
     RawSoilTemperatureView,
     RawMultiMetricView
 )
@@ -26,6 +27,7 @@ from .raw_data_views import (
 from .averaged_chart_views import (
     AveragedSnowDepthView,
     AveragedRainfallView,
+    AveragedHumidityView,
     AveragedSoilTemperatureView
 )
 
@@ -103,11 +105,13 @@ __all__ = [
     # Raw data views
     'RawSnowDepthView',
     'RawRainfallView',
+    'RawHumidityView',
     'RawSoilTemperatureView',
     'RawMultiMetricView',
     # Averaged chart views
     'AveragedSnowDepthView',
     'AveragedRainfallView',
+    'AveragedHumidityView',
     'AveragedSoilTemperatureView',
     'TestEmailView',
     'TestMultipleEmailView',

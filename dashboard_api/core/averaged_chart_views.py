@@ -8,7 +8,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from django.db.models import Q, Max, Avg, Min, Sum, Count
-from django.db.models.functions import ExtractHour, ExtractWeek
+from django.db.models.functions import ExtractWeek
+from django.db.models.functions import Substr
 
 from .models import EnvironmentalData
 
@@ -63,75 +64,66 @@ class AveragedSnowDepthView(APIView):
             
             # Group by time period and calculate averages
             if group_by == 'hour':
-                # Group by year, month, day, and hour
-                aggregated_data = queryset.values('Year', 'Month', 'Day').annotate(
-                    hour=ExtractHour('Time')
-                ).values('Year', 'Month', 'Day', 'hour').annotate(
+                # For hourly: return exactly 24 data points (0-23 hours) with calculated averages
+                aggregated_data = queryset.annotate(
+                    hour=Substr('Time', 1, 2)  # Extract first 2 characters as hour
+                ).values('hour').annotate(
                     avg_snow_depth=Avg('SnowDepth_cm'),
                     max_snow_depth=Max('SnowDepth_cm'),
                     min_snow_depth=Min('SnowDepth_cm'),
                     data_points=Count('id')
-                ).order_by('Year', 'Month', 'Day', 'hour')
+                ).order_by('hour')
                 
                 chart_data = []
                 for record in aggregated_data:
-                    chart_data.append({
-                        'period': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d} {record['hour']:02d}:00",
-                        'date': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
-                        'hour': record['hour'],
-                        'year': record['Year'],
-                        'month': record['Month'],
-                        'day': record['Day'],
-                        'avg_snow_depth_cm': round(record['avg_snow_depth'], 2),
-                        'max_snow_depth_cm': record['max_snow_depth'],
-                        'min_snow_depth_cm': record['min_snow_depth'],
-                        'data_points': record['data_points']
-                    })
+                    try:
+                        hour_int = int(record['hour']) if record['hour'] else 0
+                        chart_data.append({
+                            'period': f"{hour_int:02d}:00",
+                            'avg': round(record['avg_snow_depth'], 2),
+                            'max': record['max_snow_depth'],
+                            'min': record['min_snow_depth']
+                        })
+                    except (ValueError, TypeError):
+                        # Skip records with invalid hour format
+                        continue
                     
             elif group_by == 'month':
-                # Group by year and month
-                aggregated_data = queryset.values('Year', 'Month').annotate(
+                # For monthly: return exactly 12 data points (1-12 months) with calculated averages
+                aggregated_data = queryset.values('Month').annotate(
                     avg_snow_depth=Avg('SnowDepth_cm'),
                     max_snow_depth=Max('SnowDepth_cm'),
                     min_snow_depth=Min('SnowDepth_cm'),
                     data_points=Count('id')
-                ).order_by('Year', 'Month')
+                ).order_by('Month')
                 
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"{record['Year']}-{record['Month']:02d}",
-                        'date': f"{record['Year']}-{record['Month']:02d}-01",
-                        'year': record['Year'],
-                        'month': record['Month'],
-                        'avg_snow_depth_cm': round(record['avg_snow_depth'], 2),
-                        'max_snow_depth_cm': record['max_snow_depth'],
-                        'min_snow_depth_cm': record['min_snow_depth'],
-                        'data_points': record['data_points']
+                        'period': f"{record['Month']:02d}",
+                        'avg': round(record['avg_snow_depth'], 2),
+                        'max': record['max_snow_depth'],
+                        'min': record['min_snow_depth']
                     })
                     
             elif group_by == 'week':
-                # Group by year and week
+                # For weekly: return exactly 52 data points (1-52 weeks) with calculated averages
                 aggregated_data = queryset.annotate(
                     week=ExtractWeek('Year', 'Month', 'Day')
-                ).values('Year', 'week').annotate(
+                ).values('week').annotate(
                     avg_snow_depth=Avg('SnowDepth_cm'),
                     max_snow_depth=Max('SnowDepth_cm'),
                     min_snow_depth=Min('SnowDepth_cm'),
                     data_points=Count('id')
-                ).order_by('Year', 'week')
+                ).order_by('week')
                 
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"{record['Year']}-W{record['week']:02d}",
-                        'date': f"{record['Year']}-01-01",  # Simplified
-                        'year': record['Year'],
-                        'week': record['week'],
-                        'avg_snow_depth_cm': round(record['avg_snow_depth'], 2),
-                        'max_snow_depth_cm': record['max_snow_depth'],
-                        'min_snow_depth_cm': record['min_snow_depth'],
-                        'data_points': record['data_points']
+                        'period': f"W{record['week']:02d}",
+                        'avg': round(record['avg_snow_depth'], 2),
+                        'max': record['max_snow_depth'],
+                        'min': record['min_snow_depth']
                     })
                     
             else:  # Default: group by day
@@ -146,31 +138,15 @@ class AveragedSnowDepthView(APIView):
                 for record in aggregated_data:
                     chart_data.append({
                         'period': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
-                        'date': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
-                        'year': record['Year'],
-                        'month': record['Month'],
-                        'day': record['Day'],
-                        'avg_snow_depth_cm': round(record['avg_snow_depth'], 2),
-                        'max_snow_depth_cm': record['max_snow_depth'],
-                        'min_snow_depth_cm': record['min_snow_depth'],
-                        'data_points': record['data_points']
+                        'avg': round(record['avg_snow_depth'], 2),
+                        'max': record['max_snow_depth'],
+                        'min': record['min_snow_depth']
                     })
             
             return Response({
                 'success': True,
                 'data': chart_data,
-                'total_periods': len(chart_data),
-                'metric': 'snow_depth_cm',
-                'unit': 'cm',
-                'aggregation': 'average',
-                'group_by': group_by,
-                'filters_applied': {
-                    'year': year,
-                    'month': month,
-                    'start_date': start_date,
-                    'end_date': end_date,
-                    'group_by': group_by
-                }
+                'unit': 'cm'
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -228,58 +204,53 @@ class AveragedRainfallView(APIView):
             
             # Group by time period and calculate averages
             if group_by == 'hour':
-                # Group by year, month, day, and hour
-                aggregated_data = queryset.values('Year', 'Month', 'Day').annotate(
-                    hour=ExtractHour('Time')
-                ).values('Year', 'Month', 'Day', 'hour').annotate(
+                # For hourly: return exactly 24 data points (0-23 hours) with calculated averages
+                aggregated_data = queryset.annotate(
+                    hour=Substr('Time', 1, 2)  # Extract first 2 characters as hour
+                ).values('hour').annotate(
                     avg_rainfall=Avg('Rainfall_mm'),
                     total_rainfall=Sum('Rainfall_mm'),
                     max_rainfall=Max('Rainfall_mm'),
                     data_points=Count('id')
-                ).order_by('Year', 'Month', 'Day', 'hour')
+                ).order_by('hour')
                 
                 chart_data = []
                 for record in aggregated_data:
-                    chart_data.append({
-                        'period': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d} {record['hour']:02d}:00",
-                        'date': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
-                        'hour': record['hour'],
-                        'year': record['Year'],
-                        'month': record['Month'],
-                        'day': record['Day'],
-                        'avg_rainfall_mm': round(record['avg_rainfall'], 2),
-                        'total_rainfall_mm': round(record['total_rainfall'], 2),
-                        'max_rainfall_mm': record['max_rainfall'],
-                        'data_points': record['data_points']
-                    })
+                    try:
+                        hour_int = int(record['hour']) if record['hour'] else 0
+                        chart_data.append({
+                            'period': f"{hour_int:02d}:00",
+                            'avg': round(record['avg_rainfall'], 2),
+                            'total': round(record['total_rainfall'], 2),
+                            'max': record['max_rainfall']
+                        })
+                    except (ValueError, TypeError):
+                        # Skip records with invalid hour format
+                        continue
                     
             elif group_by == 'month':
-                # Group by year and month
-                aggregated_data = queryset.values('Year', 'Month').annotate(
+                # For monthly: return exactly 12 data points (1-12 months) with calculated averages
+                aggregated_data = queryset.values('Month').annotate(
                     avg_rainfall=Avg('Rainfall_mm'),
                     total_rainfall=Sum('Rainfall_mm'),
                     max_rainfall=Max('Rainfall_mm'),
                     data_points=Count('id')
-                ).order_by('Year', 'Month')
+                ).order_by('Month')
                 
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"{record['Year']}-{record['Month']:02d}",
-                        'date': f"{record['Year']}-{record['Month']:02d}-01",
-                        'year': record['Year'],
-                        'month': record['Month'],
-                        'avg_rainfall_mm': round(record['avg_rainfall'], 2),
-                        'total_rainfall_mm': round(record['total_rainfall'], 2),
-                        'max_rainfall_mm': record['max_rainfall'],
-                        'data_points': record['data_points']
+                        'period': f"{record['Month']:02d}",
+                        'avg': round(record['avg_rainfall'], 2),
+                        'total': round(record['total_rainfall'], 2),
+                        'max': record['max_rainfall']
                     })
                     
             elif group_by == 'week':
-                # Group by year and week
+                # For weekly: return exactly 52 data points (1-52 weeks) with calculated averages
                 aggregated_data = queryset.annotate(
                     week=ExtractWeek('Year', 'Month', 'Day')
-                ).values('Year', 'week').annotate(
+                ).values('week').annotate(
                     avg_rainfall=Avg('Rainfall_mm'),
                     total_rainfall=Sum('Rainfall_mm'),
                     max_rainfall=Max('Rainfall_mm'),
@@ -289,14 +260,10 @@ class AveragedRainfallView(APIView):
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"{record['Year']}-W{record['week']:02d}",
-                        'date': f"{record['Year']}-01-01",  # Simplified
-                        'year': record['Year'],
-                        'week': record['week'],
-                        'avg_rainfall_mm': round(record['avg_rainfall'], 2),
-                        'total_rainfall_mm': round(record['total_rainfall'], 2),
-                        'max_rainfall_mm': record['max_rainfall'],
-                        'data_points': record['data_points']
+                        'period': f"W{record['week']:02d}",
+                        'avg': round(record['avg_rainfall'], 2),
+                        'total': round(record['total_rainfall'], 2),
+                        'max': record['max_rainfall']
                     })
                     
             else:  # Default: group by day
@@ -311,31 +278,15 @@ class AveragedRainfallView(APIView):
                 for record in aggregated_data:
                     chart_data.append({
                         'period': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
-                        'date': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
-                        'year': record['Year'],
-                        'month': record['Month'],
-                        'day': record['Day'],
-                        'avg_rainfall_mm': round(record['avg_rainfall'], 2),
-                        'total_rainfall_mm': round(record['total_rainfall'], 2),
-                        'max_rainfall_mm': record['max_rainfall'],
-                        'data_points': record['data_points']
+                        'avg': round(record['avg_rainfall'], 2),
+                        'total': round(record['total_rainfall'], 2),
+                        'max': record['max_rainfall']
                     })
             
             return Response({
                 'success': True,
                 'data': chart_data,
-                'total_periods': len(chart_data),
-                'metric': 'rainfall',
-                'unit': 'mm',
-                'aggregation': 'average',
-                'group_by': group_by,
-                'filters_applied': {
-                    'year': year,
-                    'month': month,
-                    'start_date': start_date,
-                    'end_date': end_date,
-                    'group_by': group_by
-                }
+                'unit': 'mm'
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -405,78 +356,66 @@ class AveragedSoilTemperatureView(APIView):
             
             # Group by time period and calculate averages
             if group_by == 'hour':
-                # Group by year, month, day, and hour
-                aggregated_data = queryset.values('Year', 'Month', 'Day').annotate(
-                    hour=ExtractHour('Time')
-                ).values('Year', 'Month', 'Day', 'hour').annotate(
+                # For hourly: return exactly 24 data points (0-23 hours) with calculated averages
+                aggregated_data = queryset.annotate(
+                    hour=Substr('Time', 1, 2)  # Extract first 2 characters as hour
+                ).values('hour').annotate(
                     avg_temp=Avg(field_name),
                     max_temp=Max(field_name),
                     min_temp=Min(field_name),
                     data_points=Count('id')
-                ).order_by('Year', 'Month', 'Day', 'hour')
+                ).order_by('hour')
                 
                 chart_data = []
                 for record in aggregated_data:
-                    chart_data.append({
-                        'period': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d} {record['hour']:02d}:00",
-                        'date': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
-                        'hour': record['hour'],
-                        'year': record['Year'],
-                        'month': record['Month'],
-                        'day': record['Day'],
-                        'avg_soil_temp_degc': round(record['avg_temp'], 2),
-                        'max_soil_temp_degc': record['max_temp'],
-                        'min_soil_temp_degc': record['min_temp'],
-                        'depth': depth,
-                        'data_points': record['data_points']
-                    })
-                    
+                    try:
+                        hour_int = int(record['hour']) if record['hour'] else 0
+                        chart_data.append({
+                            'period': f"{hour_int:02d}:00",
+                            'avg': round(record['avg_temp'], 2),
+                            'max': record['max_temp'],
+                            'min': record['min_temp']
+                        })
+                    except (ValueError, TypeError):
+                        # Skip records with invalid hour format
+                        continue
+                        
             elif group_by == 'month':
-                # Group by year and month
-                aggregated_data = queryset.values('Year', 'Month').annotate(
+                # For monthly: return exactly 12 data points (1-12 months) with calculated averages
+                aggregated_data = queryset.values('Month').annotate(
                     avg_temp=Avg(field_name),
                     max_temp=Max(field_name),
                     min_temp=Min(field_name),
                     data_points=Count('id')
-                ).order_by('Year', 'Month')
+                ).order_by('Month')
                 
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"{record['Year']}-{record['Month']:02d}",
-                        'date': f"{record['Year']}-{record['Month']:02d}-01",
-                        'year': record['Year'],
-                        'month': record['Month'],
-                        'avg_soil_temp_degc': round(record['avg_temp'], 2),
-                        'max_soil_temp_degc': record['max_temp'],
-                        'min_soil_temp_degc': record['min_temp'],
-                        'depth': depth,
-                        'data_points': record['data_points']
+                        'period': f"{record['Month']:02d}",
+                        'avg': round(record['avg_temp'], 2),
+                        'max': record['max_temp'],
+                        'min': record['min_temp']
                     })
                     
             elif group_by == 'week':
-                # Group by year and week
+                # For weekly: return exactly 52 data points (1-52 weeks) with calculated averages
                 aggregated_data = queryset.annotate(
                     week=ExtractWeek('Year', 'Month', 'Day')
-                ).values('Year', 'week').annotate(
+                ).values('week').annotate(
                     avg_temp=Avg(field_name),
                     max_temp=Max(field_name),
                     min_temp=Min(field_name),
                     data_points=Count('id')
-                ).order_by('Year', 'week')
+                ).order_by('week')
                 
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"{record['Year']}-W{record['week']:02d}",
-                        'date': f"{record['Year']}-01-01",  # Simplified
-                        'year': record['Year'],
-                        'week': record['week'],
-                        'avg_soil_temp_degc': round(record['avg_temp'], 2),
-                        'max_soil_temp_degc': record['max_temp'],
-                        'min_soil_temp_degc': record['min_temp'],
-                        'depth': depth,
-                        'data_points': record['data_points']
+                        'period': f"W{record['week']:02d}",
+                        'avg': round(record['avg_temp'], 2),
+                        'max': record['max_temp'],
+                        'min': record['min_temp']
                     })
                     
             else:  # Default: group by day
@@ -491,34 +430,15 @@ class AveragedSoilTemperatureView(APIView):
                 for record in aggregated_data:
                     chart_data.append({
                         'period': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
-                        'date': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
-                        'year': record['Year'],
-                        'month': record['Month'],
-                        'day': record['Day'],
-                        'avg_soil_temp_degc': round(record['avg_temp'], 2),
-                        'max_soil_temp_degc': record['max_temp'],
-                        'min_soil_temp_degc': record['min_temp'],
-                        'depth': depth,
-                        'data_points': record['data_points']
+                        'avg': round(record['avg_temp'], 2),
+                        'max': record['max_temp'],
+                        'min': record['min_temp']
                     })
             
             return Response({
                 'success': True,
                 'data': chart_data,
-                'total_periods': len(chart_data),
-                'metric': 'soil_temperature',
-                'unit': '°C',
-                'depth': depth,
-                'aggregation': 'average',
-                'group_by': group_by,
-                'filters_applied': {
-                    'year': year,
-                    'month': month,
-                    'start_date': start_date,
-                    'end_date': end_date,
-                    'depth': depth,
-                    'group_by': group_by
-                }
+                'unit': '°C'
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -526,4 +446,144 @@ class AveragedSoilTemperatureView(APIView):
             return Response({
                 'success': False,
                 'error': f'Failed to retrieve averaged soil temperature data: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AveragedHumidityView(APIView):
+    """Averaged humidity data for charts and dashboards"""
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Get averaged humidity data over time for charting"""
+        try:
+            # Get query parameters
+            year = request.query_params.get('year')
+            month = request.query_params.get('month')
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            group_by = request.query_params.get('group_by', 'day')  # hour, day, week, month
+            
+            queryset = EnvironmentalData.objects.filter(
+                RelativeHumidity_Pct__isnull=False
+            )
+            
+            # Apply filters
+            if year:
+                queryset = queryset.filter(Year=int(year))
+            if month:
+                queryset = queryset.filter(Month=int(month))
+            if start_date:
+                start_year, start_month, start_day = map(int, start_date.split('-'))
+                queryset = queryset.filter(
+                    Q(Year__gt=start_year) |
+                    (Q(Year=start_year) & Q(Month__gt=start_month)) |
+                    (Q(Year=start_year) & Q(Month=start_month) & Q(Day__gte=start_day))
+                )
+            if end_date:
+                end_year, end_month, end_day = map(int, end_date.split('-'))
+                queryset = queryset.filter(
+                    Q(Year__lt=end_year) |
+                    (Q(Year=end_year) & Q(Month__lt=end_month)) |
+                    (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
+                )
+            
+            # If no date filters are applied, default to the latest year
+            if not any([year, month, start_date, end_date]):
+                latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
+                if latest_year:
+                    queryset = queryset.filter(Year=latest_year)
+                    year = str(latest_year)  # For response metadata
+            
+            # Group by time period and calculate averages
+            if group_by == 'hour':
+                # For hourly: return exactly 24 data points (0-23 hours) with calculated averages
+                aggregated_data = queryset.annotate(
+                    hour=Substr('Time', 1, 2)  # Extract first 2 characters as hour
+                ).values('hour').annotate(
+                    avg_humidity=Avg('RelativeHumidity_Pct'),
+                    max_humidity=Max('RelativeHumidity_Pct'),
+                    min_humidity=Min('RelativeHumidity_Pct'),
+                    data_points=Count('id')
+                ).order_by('hour')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    try:
+                        hour_int = int(record['hour']) if record['hour'] else 0
+                        chart_data.append({
+                            'period': f"{hour_int:02d}:00",
+                            'avg': round(record['avg_humidity'], 2),
+                            'max': record['max_humidity'],
+                            'min': record['min_humidity']
+                        })
+                    except (ValueError, TypeError):
+                        # Skip records with invalid hour format
+                        continue
+                        
+            elif group_by == 'month':
+                # For monthly: return exactly 12 data points (1-12 months) with calculated averages
+                aggregated_data = queryset.values('Month').annotate(
+                    avg_humidity=Avg('RelativeHumidity_Pct'),
+                    max_humidity=Max('RelativeHumidity_Pct'),
+                    min_humidity=Min('RelativeHumidity_Pct'),
+                    data_points=Count('id')
+                ).order_by('Month')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'period': f"{record['Month']:02d}",
+                        'avg': round(record['avg_humidity'], 2),
+                        'max': record['max_humidity'],
+                        'min': record['min_humidity']
+                    })
+                    
+            elif group_by == 'week':
+                # For weekly: return exactly 52 data points (1-52 weeks) with calculated averages
+                aggregated_data = queryset.annotate(
+                    week=ExtractWeek('Year', 'Month', 'Day')
+                ).values('week').annotate(
+                    avg_humidity=Avg('RelativeHumidity_Pct'),
+                    max_humidity=Max('RelativeHumidity_Pct'),
+                    min_humidity=Min('RelativeHumidity_Pct'),
+                    data_points=Count('id')
+                ).order_by('week')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'period': f"W{record['week']:02d}",
+                        'avg': round(record['avg_humidity'], 2),
+                        'max': record['max_humidity'],
+                        'min': record['min_humidity']
+                    })
+                    
+            else:  # Default: group by day
+                aggregated_data = queryset.values('Year', 'Month', 'Day').annotate(
+                    avg_humidity=Avg('RelativeHumidity_Pct'),
+                    max_humidity=Max('RelativeHumidity_Pct'),
+                    min_humidity=Min('RelativeHumidity_Pct'),
+                    data_points=Count('id')
+                ).order_by('Year', 'Month', 'Day')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'period': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
+                        'avg': round(record['avg_humidity'], 2),
+                        'max': record['max_humidity'],
+                        'min': record['min_humidity']
+                    })
+            
+            return Response({
+                'success': True,
+                'data': chart_data,
+                'unit': '%'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error in AveragedHumidityView: {str(e)}")
+            return Response({
+                'success': False,
+                'error': f'Failed to retrieve averaged humidity data: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 

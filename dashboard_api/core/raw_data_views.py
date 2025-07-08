@@ -221,6 +221,94 @@ class RawRainfallView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class RawHumidityView(APIView):
+    """Raw humidity data for detailed analysis"""
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Get raw humidity data points for detailed analysis"""
+        try:
+            # Get query parameters
+            year = request.query_params.get('year')
+            month = request.query_params.get('month')
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            
+            # Performance optimization: validate limit
+            limit, error_response = validate_and_get_limit(request)
+            if error_response:
+                return Response(error_response, status=status.HTTP_400_BAD_REQUEST)
+            
+            queryset = EnvironmentalData.objects.filter(
+                RelativeHumidity_Pct__isnull=False
+            ).order_by('Year', 'Month', 'Day', 'Time')
+            
+            # Apply filters
+            if year:
+                queryset = queryset.filter(Year=int(year))
+            if month:
+                queryset = queryset.filter(Month=int(month))
+            if start_date:
+                start_year, start_month, start_day = map(int, start_date.split('-'))
+                queryset = queryset.filter(
+                    Q(Year__gt=start_year) |
+                    (Q(Year=start_year) & Q(Month__gt=start_month)) |
+                    (Q(Year=start_year) & Q(Month=start_month) & Q(Day__gte=start_day))
+                )
+            if end_date:
+                end_year, end_month, end_day = map(int, end_date.split('-'))
+                queryset = queryset.filter(
+                    Q(Year__lt=end_year) |
+                    (Q(Year=end_year) & Q(Month__lt=end_month)) |
+                    (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
+                )
+            
+            # If no date filters are applied, default to the latest year
+            if not any([year, month, start_date, end_date]):
+                latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
+                if latest_year:
+                    queryset = queryset.filter(Year=latest_year)
+                    year = str(latest_year)  # For response metadata
+            
+            queryset = queryset[:limit]
+            
+            # Format data for detailed analysis
+            raw_data = []
+            for record in queryset:
+                raw_data.append({
+                    'timestamp': f"{record.Year}-{record.Month:02d}-{record.Day:02d} {record.Time}",
+                    'date': f"{record.Year}-{record.Month:02d}-{record.Day:02d}",
+                    'time': record.Time,
+                    'relative_humidity_pct': record.RelativeHumidity_Pct,
+                    'year': record.Year,
+                    'month': record.Month,
+                    'day': record.Day
+                })
+            
+            return Response({
+                'success': True,
+                'data': raw_data,
+                'total_points': len(raw_data),
+                'metric': 'relative_humidity_pct',
+                'unit': '%',
+                'data_type': 'raw_points',
+                'filters_applied': {
+                    'year': year,
+                    'month': month,
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'limit': limit
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error in RawHumidityView: {str(e)}")
+            return Response({
+                'success': False,
+                'error': f'Failed to retrieve raw humidity data: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class RawSoilTemperatureView(APIView):
     """Raw soil temperature data for detailed analysis"""
     permission_classes = [AllowAny]
