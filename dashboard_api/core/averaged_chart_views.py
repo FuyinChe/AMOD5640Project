@@ -7,9 +7,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from django.db.models import Q, Max, Avg, Min, Sum, Count
-from django.db.models.functions import ExtractWeek
-from django.db.models.functions import Substr
+from django.db.models import Q, Max, Avg, Min, Sum, Count, Value, CharField
+from django.db.models.functions import ExtractWeek, Substr, Concat, Cast
+from django.db.models import DateField
 
 from .models import EnvironmentalData
 
@@ -90,6 +90,10 @@ class AveragedSnowDepthView(APIView):
                     
             elif group_by == 'month':
                 # For monthly: return exactly 12 data points (1-12 months) with calculated averages
+                month_names = {
+                    1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                    7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'
+                }
                 aggregated_data = queryset.values('Month').annotate(
                     avg_snow_depth=Avg('SnowDepth_cm'),
                     max_snow_depth=Max('SnowDepth_cm'),
@@ -100,16 +104,27 @@ class AveragedSnowDepthView(APIView):
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"{record['Month']:02d}",
+                        'period': month_names.get(record['Month'], f"{record['Month']:02d}"),
                         'avg': round(record['avg_snow_depth'], 2),
                         'max': record['max_snow_depth'],
                         'min': record['min_snow_depth']
                     })
                     
-            elif group_by == 'week':
+            elif group_by in ['week', 'weekly']:
                 # For weekly: return exactly 52 data points (1-52 weeks) with calculated averages
                 aggregated_data = queryset.annotate(
-                    week=ExtractWeek('Year', 'Month', 'Day')
+                    date_field=Cast(
+                        Concat(
+                            Cast('Year', output_field=CharField()),
+                            Value('-'),
+                            Cast('Month', output_field=CharField()),
+                            Value('-'),
+                            Cast('Day', output_field=CharField())
+                        ),
+                        output_field=DateField()
+                    )
+                ).annotate(
+                    week=ExtractWeek('date_field')
                 ).values('week').annotate(
                     avg_snow_depth=Avg('SnowDepth_cm'),
                     max_snow_depth=Max('SnowDepth_cm'),
@@ -120,7 +135,7 @@ class AveragedSnowDepthView(APIView):
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"W{record['week']:02d}",
+                        'week': record['week'],
                         'avg': round(record['avg_snow_depth'], 2),
                         'max': record['max_snow_depth'],
                         'min': record['min_snow_depth']
@@ -230,6 +245,10 @@ class AveragedRainfallView(APIView):
                     
             elif group_by == 'month':
                 # For monthly: return exactly 12 data points (1-12 months) with calculated averages
+                month_names = {
+                    1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                    7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'
+                }
                 aggregated_data = queryset.values('Month').annotate(
                     avg_rainfall=Avg('Rainfall_mm'),
                     total_rainfall=Sum('Rainfall_mm'),
@@ -240,27 +259,38 @@ class AveragedRainfallView(APIView):
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"{record['Month']:02d}",
+                        'period': month_names.get(record['Month'], f"{record['Month']:02d}"),
                         'avg': round(record['avg_rainfall'], 2),
                         'total': round(record['total_rainfall'], 2),
                         'max': record['max_rainfall']
                     })
                     
-            elif group_by == 'week':
+            elif group_by in ['week', 'weekly']:
                 # For weekly: return exactly 52 data points (1-52 weeks) with calculated averages
                 aggregated_data = queryset.annotate(
-                    week=ExtractWeek('Year', 'Month', 'Day')
+                    date_field=Cast(
+                        Concat(
+                            Cast('Year', output_field=CharField()),
+                            Value('-'),
+                            Cast('Month', output_field=CharField()),
+                            Value('-'),
+                            Cast('Day', output_field=CharField())
+                        ),
+                        output_field=DateField()
+                    )
+                ).annotate(
+                    week=ExtractWeek('date_field')
                 ).values('week').annotate(
                     avg_rainfall=Avg('Rainfall_mm'),
                     total_rainfall=Sum('Rainfall_mm'),
                     max_rainfall=Max('Rainfall_mm'),
                     data_points=Count('id')
-                ).order_by('Year', 'week')
+                ).order_by('week')
                 
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"W{record['week']:02d}",
+                        'week': record['week'],
                         'avg': round(record['avg_rainfall'], 2),
                         'total': round(record['total_rainfall'], 2),
                         'max': record['max_rainfall']
@@ -382,6 +412,10 @@ class AveragedSoilTemperatureView(APIView):
                         
             elif group_by == 'month':
                 # For monthly: return exactly 12 data points (1-12 months) with calculated averages
+                month_names = {
+                    1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                    7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'
+                }
                 aggregated_data = queryset.values('Month').annotate(
                     avg_temp=Avg(field_name),
                     max_temp=Max(field_name),
@@ -392,16 +426,27 @@ class AveragedSoilTemperatureView(APIView):
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"{record['Month']:02d}",
+                        'period': month_names.get(record['Month'], f"{record['Month']:02d}"),
                         'avg': round(record['avg_temp'], 2),
                         'max': record['max_temp'],
                         'min': record['min_temp']
                     })
                     
-            elif group_by == 'week':
+            elif group_by in ['week', 'weekly']:
                 # For weekly: return exactly 52 data points (1-52 weeks) with calculated averages
                 aggregated_data = queryset.annotate(
-                    week=ExtractWeek('Year', 'Month', 'Day')
+                    date_field=Cast(
+                        Concat(
+                            Cast('Year', output_field=CharField()),
+                            Value('-'),
+                            Cast('Month', output_field=CharField()),
+                            Value('-'),
+                            Cast('Day', output_field=CharField())
+                        ),
+                        output_field=DateField()
+                    )
+                ).annotate(
+                    week=ExtractWeek('date_field')
                 ).values('week').annotate(
                     avg_temp=Avg(field_name),
                     max_temp=Max(field_name),
@@ -412,7 +457,7 @@ class AveragedSoilTemperatureView(APIView):
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"W{record['week']:02d}",
+                        'week': record['week'],
                         'avg': round(record['avg_temp'], 2),
                         'max': record['max_temp'],
                         'min': record['min_temp']
@@ -522,6 +567,10 @@ class AveragedHumidityView(APIView):
                         
             elif group_by == 'month':
                 # For monthly: return exactly 12 data points (1-12 months) with calculated averages
+                month_names = {
+                    1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                    7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'
+                }
                 aggregated_data = queryset.values('Month').annotate(
                     avg_humidity=Avg('RelativeHumidity_Pct'),
                     max_humidity=Max('RelativeHumidity_Pct'),
@@ -532,16 +581,27 @@ class AveragedHumidityView(APIView):
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"{record['Month']:02d}",
+                        'period': month_names.get(record['Month'], f"{record['Month']:02d}"),
                         'avg': round(record['avg_humidity'], 2),
                         'max': record['max_humidity'],
                         'min': record['min_humidity']
                     })
                     
-            elif group_by == 'week':
+            elif group_by in ['week', 'weekly']:
                 # For weekly: return exactly 52 data points (1-52 weeks) with calculated averages
                 aggregated_data = queryset.annotate(
-                    week=ExtractWeek('Year', 'Month', 'Day')
+                    date_field=Cast(
+                        Concat(
+                            Cast('Year', output_field=CharField()),
+                            Value('-'),
+                            Cast('Month', output_field=CharField()),
+                            Value('-'),
+                            Cast('Day', output_field=CharField())
+                        ),
+                        output_field=DateField()
+                    )
+                ).annotate(
+                    week=ExtractWeek('date_field')
                 ).values('week').annotate(
                     avg_humidity=Avg('RelativeHumidity_Pct'),
                     max_humidity=Max('RelativeHumidity_Pct'),
@@ -552,7 +612,7 @@ class AveragedHumidityView(APIView):
                 chart_data = []
                 for record in aggregated_data:
                     chart_data.append({
-                        'period': f"W{record['week']:02d}",
+                        'week': record['week'],
                         'avg': round(record['avg_humidity'], 2),
                         'max': record['max_humidity'],
                         'min': record['min_humidity']
