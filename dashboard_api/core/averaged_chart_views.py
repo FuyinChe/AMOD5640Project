@@ -3,13 +3,16 @@ Averaged chart views module for environmental data visualizations
 Returns aggregated values over time periods (hourly, daily, monthly)
 """
 import logging
+from typing import Any, Dict, List, Optional
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from rest_framework.request import Request
 from django.db.models import Q, Max, Avg, Min, Sum, Count, Value, CharField
 from django.db.models.functions import ExtractWeek, Substr, Concat, Cast
 from django.db.models import DateField
+from django.db.models.query import QuerySet
 
 from .models import EnvironmentalData
 
@@ -21,7 +24,7 @@ class AveragedSnowDepthView(APIView):
     """Averaged snow depth data for charts and dashboards"""
     permission_classes = [AllowAny]
     
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """Get averaged snow depth data over time for charting"""
         try:
             # Get query parameters
@@ -176,7 +179,7 @@ class AveragedRainfallView(APIView):
     """Averaged rainfall data for charts and dashboards"""
     permission_classes = [AllowAny]
     
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """Get averaged rainfall data over time for charting"""
         try:
             # Get query parameters
@@ -331,7 +334,7 @@ class AveragedSoilTemperatureView(APIView):
     """Averaged soil temperature data for charts and dashboards"""
     permission_classes = [AllowAny]
     
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """Get averaged soil temperature data over time for charting"""
         try:
             # Get query parameters
@@ -498,7 +501,7 @@ class AveragedHumidityView(APIView):
     """Averaged humidity data for charts and dashboards"""
     permission_classes = [AllowAny]
     
-    def get(self, request):
+    def get(self, request: Request) -> Response:
         """Get averaged humidity data over time for charting"""
         try:
             # Get query parameters
@@ -646,4 +649,469 @@ class AveragedHumidityView(APIView):
             return Response({
                 'success': False,
                 'error': f'Failed to retrieve averaged humidity data: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+
+
+class AveragedShortwaveRadiationView(APIView):
+    """Averaged shortwave radiation data for charts and dashboards"""
+    permission_classes = [AllowAny]
+    
+    def get(self, request: Request) -> Response:
+        """Get averaged shortwave radiation data over time for charting"""
+        try:
+            # Get query parameters
+            year = request.query_params.get('year')
+            month = request.query_params.get('month')
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            group_by = request.query_params.get('group_by', 'day')  # hour, day, week, month
+            
+            queryset = EnvironmentalData.objects.filter(
+                ShortwaveRadiation_Wm2__isnull=False
+            )
+            
+            # Apply filters
+            if year:
+                queryset = queryset.filter(Year=int(year))
+            if month:
+                queryset = queryset.filter(Month=int(month))
+            if start_date:
+                start_year, start_month, start_day = map(int, start_date.split('-'))
+                queryset = queryset.filter(
+                    Q(Year__gt=start_year) |
+                    (Q(Year=start_year) & Q(Month__gt=start_month)) |
+                    (Q(Year=start_year) & Q(Month=start_month) & Q(Day__gte=start_day))
+                )
+            if end_date:
+                end_year, end_month, end_day = map(int, end_date.split('-'))
+                queryset = queryset.filter(
+                    Q(Year__lt=end_year) |
+                    (Q(Year=end_year) & Q(Month__lt=end_month)) |
+                    (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
+                )
+            
+            # If no date filters are applied, default to the latest year
+            if not any([year, month, start_date, end_date]):
+                latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
+                if latest_year:
+                    queryset = queryset.filter(Year=latest_year)
+                    year = str(latest_year)  # For response metadata
+            
+            # Group by time period and calculate averages
+            if group_by == 'hour':
+                # For hourly: return exactly 24 data points (0-23 hours) with calculated averages
+                aggregated_data = queryset.annotate(
+                    hour=Substr('Time', 1, 2)  # Extract first 2 characters as hour
+                ).values('hour').annotate(
+                    avg_radiation=Avg('ShortwaveRadiation_Wm2'),
+                    max_radiation=Max('ShortwaveRadiation_Wm2'),
+                    min_radiation=Min('ShortwaveRadiation_Wm2'),
+                    data_points=Count('id')
+                ).order_by('hour')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    try:
+                        hour_int = int(record['hour']) if record['hour'] else 0
+                        chart_data.append({
+                            'period': f"{hour_int:02d}:00",
+                            'avg': round(record['avg_radiation'], 2),
+                            'max': record['max_radiation'],
+                            'min': record['min_radiation']
+                        })
+                    except (ValueError, TypeError):
+                        # Skip records with invalid hour format
+                        continue
+                        
+            elif group_by == 'month':
+                # For monthly: return exactly 12 data points (1-12 months) with calculated averages
+                month_names = {
+                    1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                    7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'
+                }
+                aggregated_data = queryset.values('Month').annotate(
+                    avg_radiation=Avg('ShortwaveRadiation_Wm2'),
+                    max_radiation=Max('ShortwaveRadiation_Wm2'),
+                    min_radiation=Min('ShortwaveRadiation_Wm2'),
+                    data_points=Count('id')
+                ).order_by('Month')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'period': month_names.get(record['Month'], f"{record['Month']:02d}"),
+                        'avg': round(record['avg_radiation'], 2),
+                        'max': record['max_radiation'],
+                        'min': record['min_radiation']
+                    })
+                    
+            elif group_by in ['week', 'weekly']:
+                # For weekly: return exactly 52 data points (1-52 weeks) with calculated averages
+                aggregated_data = queryset.annotate(
+                    date_field=Cast(
+                        Concat(
+                            Cast('Year', output_field=CharField()),
+                            Value('-'),
+                            Cast('Month', output_field=CharField()),
+                            Value('-'),
+                            Cast('Day', output_field=CharField())
+                        ),
+                        output_field=DateField()
+                    )
+                ).annotate(
+                    week=ExtractWeek('date_field')
+                ).values('week').annotate(
+                    avg_radiation=Avg('ShortwaveRadiation_Wm2'),
+                    max_radiation=Max('ShortwaveRadiation_Wm2'),
+                    min_radiation=Min('ShortwaveRadiation_Wm2'),
+                    data_points=Count('id')
+                ).order_by('week')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'week': record['week'],
+                        'avg': round(record['avg_radiation'], 2),
+                        'max': record['max_radiation'],
+                        'min': record['min_radiation']
+                    })
+                    
+            else:  # Default: group by day
+                aggregated_data = queryset.values('Year', 'Month', 'Day').annotate(
+                    avg_radiation=Avg('ShortwaveRadiation_Wm2'),
+                    max_radiation=Max('ShortwaveRadiation_Wm2'),
+                    min_radiation=Min('ShortwaveRadiation_Wm2'),
+                    data_points=Count('id')
+                ).order_by('Year', 'Month', 'Day')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'period': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
+                        'avg': round(record['avg_radiation'], 2),
+                        'max': record['max_radiation'],
+                        'min': record['min_radiation']
+                    })
+            
+            return Response({
+                'success': True,
+                'data': chart_data,
+                'unit': 'W/m²'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error in AveragedShortwaveRadiationView: {str(e)}")
+            return Response({
+                'success': False,
+                'error': f'Failed to retrieve averaged shortwave radiation data: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AveragedWindSpeedView(APIView):
+    """Averaged wind speed data for charts and dashboards"""
+    permission_classes = [AllowAny]
+    
+    def get(self, request: Request) -> Response:
+        """Get averaged wind speed data over time for charting"""
+        try:
+            # Get query parameters
+            year = request.query_params.get('year')
+            month = request.query_params.get('month')
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            group_by = request.query_params.get('group_by', 'day')  # hour, day, week, month
+            
+            queryset = EnvironmentalData.objects.filter(
+                WindSpeed_ms__isnull=False
+            )
+            
+            # Apply filters
+            if year:
+                queryset = queryset.filter(Year=int(year))
+            if month:
+                queryset = queryset.filter(Month=int(month))
+            if start_date:
+                start_year, start_month, start_day = map(int, start_date.split('-'))
+                queryset = queryset.filter(
+                    Q(Year__gt=start_year) |
+                    (Q(Year=start_year) & Q(Month__gt=start_month)) |
+                    (Q(Year=start_year) & Q(Month=start_month) & Q(Day__gte=start_day))
+                )
+            if end_date:
+                end_year, end_month, end_day = map(int, end_date.split('-'))
+                queryset = queryset.filter(
+                    Q(Year__lt=end_year) |
+                    (Q(Year=end_year) & Q(Month__lt=end_month)) |
+                    (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
+                )
+            
+            # If no date filters are applied, default to the latest year
+            if not any([year, month, start_date, end_date]):
+                latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
+                if latest_year:
+                    queryset = queryset.filter(Year=latest_year)
+                    year = str(latest_year)  # For response metadata
+            
+            # Group by time period and calculate averages
+            if group_by == 'hour':
+                # For hourly: return exactly 24 data points (0-23 hours) with calculated averages
+                aggregated_data = queryset.annotate(
+                    hour=Substr('Time', 1, 2)  # Extract first 2 characters as hour
+                ).values('hour').annotate(
+                    avg_wind_speed=Avg('WindSpeed_ms'),
+                    max_wind_speed=Max('WindSpeed_ms'),
+                    min_wind_speed=Min('WindSpeed_ms'),
+                    data_points=Count('id')
+                ).order_by('hour')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    try:
+                        hour_int = int(record['hour']) if record['hour'] else 0
+                        chart_data.append({
+                            'period': f"{hour_int:02d}:00",
+                            'avg': round(record['avg_wind_speed'], 2),
+                            'max': record['max_wind_speed'],
+                            'min': record['min_wind_speed']
+                        })
+                    except (ValueError, TypeError):
+                        # Skip records with invalid hour format
+                        continue
+                        
+            elif group_by == 'month':
+                # For monthly: return exactly 12 data points (1-12 months) with calculated averages
+                month_names = {
+                    1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                    7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'
+                }
+                aggregated_data = queryset.values('Month').annotate(
+                    avg_wind_speed=Avg('WindSpeed_ms'),
+                    max_wind_speed=Max('WindSpeed_ms'),
+                    min_wind_speed=Min('WindSpeed_ms'),
+                    data_points=Count('id')
+                ).order_by('Month')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'period': month_names.get(record['Month'], f"{record['Month']:02d}"),
+                        'avg': round(record['avg_wind_speed'], 2),
+                        'max': record['max_wind_speed'],
+                        'min': record['min_wind_speed']
+                    })
+                    
+            elif group_by in ['week', 'weekly']:
+                # For weekly: return exactly 52 data points (1-52 weeks) with calculated averages
+                aggregated_data = queryset.annotate(
+                    date_field=Cast(
+                        Concat(
+                            Cast('Year', output_field=CharField()),
+                            Value('-'),
+                            Cast('Month', output_field=CharField()),
+                            Value('-'),
+                            Cast('Day', output_field=CharField())
+                        ),
+                        output_field=DateField()
+                    )
+                ).annotate(
+                    week=ExtractWeek('date_field')
+                ).values('week').annotate(
+                    avg_wind_speed=Avg('WindSpeed_ms'),
+                    max_wind_speed=Max('WindSpeed_ms'),
+                    min_wind_speed=Min('WindSpeed_ms'),
+                    data_points=Count('id')
+                ).order_by('week')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'week': record['week'],
+                        'avg': round(record['avg_wind_speed'], 2),
+                        'max': record['max_wind_speed'],
+                        'min': record['min_wind_speed']
+                    })
+                    
+            else:  # Default: group by day
+                aggregated_data = queryset.values('Year', 'Month', 'Day').annotate(
+                    avg_wind_speed=Avg('WindSpeed_ms'),
+                    max_wind_speed=Max('WindSpeed_ms'),
+                    min_wind_speed=Min('WindSpeed_ms'),
+                    data_points=Count('id')
+                ).order_by('Year', 'Month', 'Day')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'period': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
+                        'avg': round(record['avg_wind_speed'], 2),
+                        'max': record['max_wind_speed'],
+                        'min': record['min_wind_speed']
+                    })
+            
+            return Response({
+                'success': True,
+                'data': chart_data,
+                'unit': 'm/s'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error in AveragedWindSpeedView: {str(e)}")
+            return Response({
+                'success': False,
+                'error': f'Failed to retrieve averaged wind speed data: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AveragedAtmosphericPressureView(APIView):
+    """Averaged atmospheric pressure data for charts and dashboards"""
+    permission_classes = [AllowAny]
+    
+    def get(self, request: Request) -> Response:
+        """Get averaged atmospheric pressure data over time for charting"""
+        try:
+            # Get query parameters
+            year = request.query_params.get('year')
+            month = request.query_params.get('month')
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            group_by = request.query_params.get('group_by', 'day')  # hour, day, week, month
+            
+            queryset = EnvironmentalData.objects.filter(
+                AtmosphericPressure_kPa__isnull=False
+            )
+            
+            # Apply filters
+            if year:
+                queryset = queryset.filter(Year=int(year))
+            if month:
+                queryset = queryset.filter(Month=int(month))
+            if start_date:
+                start_year, start_month, start_day = map(int, start_date.split('-'))
+                queryset = queryset.filter(
+                    Q(Year__gt=start_year) |
+                    (Q(Year=start_year) & Q(Month__gt=start_month)) |
+                    (Q(Year=start_year) & Q(Month=start_month) & Q(Day__gte=start_day))
+                )
+            if end_date:
+                end_year, end_month, end_day = map(int, end_date.split('-'))
+                queryset = queryset.filter(
+                    Q(Year__lt=end_year) |
+                    (Q(Year=end_year) & Q(Month__lt=end_month)) |
+                    (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
+                )
+            
+            # If no date filters are applied, default to the latest year
+            if not any([year, month, start_date, end_date]):
+                latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
+                if latest_year:
+                    queryset = queryset.filter(Year=latest_year)
+                    year = str(latest_year)  # For response metadata
+            
+            # Group by time period and calculate averages
+            if group_by == 'hour':
+                # For hourly: return exactly 24 data points (0-23 hours) with calculated averages
+                aggregated_data = queryset.annotate(
+                    hour=Substr('Time', 1, 2)  # Extract first 2 characters as hour
+                ).values('hour').annotate(
+                    avg_pressure=Avg('AtmosphericPressure_kPa'),
+                    max_pressure=Max('AtmosphericPressure_kPa'),
+                    min_pressure=Min('AtmosphericPressure_kPa'),
+                    data_points=Count('id')
+                ).order_by('hour')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    try:
+                        hour_int = int(record['hour']) if record['hour'] else 0
+                        chart_data.append({
+                            'period': f"{hour_int:02d}:00",
+                            'avg': round(record['avg_pressure'], 2),
+                            'max': record['max_pressure'],
+                            'min': record['min_pressure']
+                        })
+                    except (ValueError, TypeError):
+                        # Skip records with invalid hour format
+                        continue
+                        
+            elif group_by == 'month':
+                # For monthly: return exactly 12 data points (1-12 months) with calculated averages
+                month_names = {
+                    1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                    7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'
+                }
+                aggregated_data = queryset.values('Month').annotate(
+                    avg_pressure=Avg('AtmosphericPressure_kPa'),
+                    max_pressure=Max('AtmosphericPressure_kPa'),
+                    min_pressure=Min('AtmosphericPressure_kPa'),
+                    data_points=Count('id')
+                ).order_by('Month')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'period': month_names.get(record['Month'], f"{record['Month']:02d}"),
+                        'avg': round(record['avg_pressure'], 2),
+                        'max': record['max_pressure'],
+                        'min': record['min_pressure']
+                    })
+                    
+            elif group_by in ['week', 'weekly']:
+                # For weekly: return exactly 52 data points (1-52 weeks) with calculated averages
+                aggregated_data = queryset.annotate(
+                    date_field=Cast(
+                        Concat(
+                            Cast('Year', output_field=CharField()),
+                            Value('-'),
+                            Cast('Month', output_field=CharField()),
+                            Value('-'),
+                            Cast('Day', output_field=CharField())
+                        ),
+                        output_field=DateField()
+                    )
+                ).annotate(
+                    week=ExtractWeek('date_field')
+                ).values('week').annotate(
+                    avg_pressure=Avg('AtmosphericPressure_kPa'),
+                    max_pressure=Max('AtmosphericPressure_kPa'),
+                    min_pressure=Min('AtmosphericPressure_kPa'),
+                    data_points=Count('id')
+                ).order_by('week')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'week': record['week'],
+                        'avg': round(record['avg_pressure'], 2),
+                        'max': record['max_pressure'],
+                        'min': record['min_pressure']
+                    })
+                    
+            else:  # Default: group by day
+                aggregated_data = queryset.values('Year', 'Month', 'Day').annotate(
+                    avg_pressure=Avg('AtmosphericPressure_kPa'),
+                    max_pressure=Max('AtmosphericPressure_kPa'),
+                    min_pressure=Min('AtmosphericPressure_kPa'),
+                    data_points=Count('id')
+                ).order_by('Year', 'Month', 'Day')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'period': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
+                        'avg': round(record['avg_pressure'], 2),
+                        'max': record['max_pressure'],
+                        'min': record['min_pressure']
+                    })
+            
+            return Response({
+                'success': True,
+                'data': chart_data,
+                'unit': 'kPa'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error in AveragedAtmosphericPressureView: {str(e)}")
+            return Response({
+                'success': False,
+                'error': f'Failed to retrieve averaged atmospheric pressure data: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 

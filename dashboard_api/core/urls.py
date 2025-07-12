@@ -8,6 +8,7 @@ from .views import (
     RawSnowDepthView, RawRainfallView, RawHumidityView, RawSoilTemperatureView, RawMultiMetricView,
     # Averaged chart views
     AveragedSnowDepthView, AveragedRainfallView, AveragedHumidityView, AveragedSoilTemperatureView,
+    AveragedShortwaveRadiationView, AveragedWindSpeedView, AveragedAtmosphericPressureView,
 )
 
 
@@ -43,5 +44,8 @@ urlpatterns = [path('admin-dashboard/', AdminDashboardView.as_view(),name='admin
     path('charts/rainfall/', AveragedRainfallView.as_view(), name='rainfall-chart'),
     path('charts/humidity/', AveragedHumidityView.as_view(), name='humidity-chart'),
     path('charts/soil-temperature/', AveragedSoilTemperatureView.as_view(), name='soil-temperature-chart'),
+    path('charts/shortwave-radiation/', AveragedShortwaveRadiationView.as_view(), name='shortwave-radiation-chart'),
+    path('charts/wind-speed/', AveragedWindSpeedView.as_view(), name='wind-speed-chart'),
+    path('charts/atmospheric-pressure/', AveragedAtmosphericPressureView.as_view(), name='atmospheric-pressure-chart'),
 
 ]

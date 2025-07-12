@@ -28,7 +28,10 @@ from .averaged_chart_views import (
     AveragedSnowDepthView,
     AveragedRainfallView,
     AveragedHumidityView,
-    AveragedSoilTemperatureView
+    AveragedSoilTemperatureView,
+    AveragedShortwaveRadiationView,
+    AveragedWindSpeedView,
+    AveragedAtmosphericPressureView
 )
 
 from .email_views import (
@@ -113,6 +116,9 @@ __all__ = [
     'AveragedRainfallView',
     'AveragedHumidityView',
     'AveragedSoilTemperatureView',
+    'AveragedShortwaveRadiationView',
+    'AveragedWindSpeedView',
+    'AveragedAtmosphericPressureView',
     'TestEmailView',
     'TestMultipleEmailView',
     'AdminTestView'
