@@ -9,6 +9,8 @@ from .views import (
     # Averaged chart views
     AveragedSnowDepthView, AveragedRainfallView, AveragedHumidityView, AveragedSoilTemperatureView,
     AveragedShortwaveRadiationView, AveragedWindSpeedView, AveragedAtmosphericPressureView,
+    # Statistical chart views
+    MultiMetricBoxplotView,
 )
 
 
@@ -47,5 +49,8 @@ urlpatterns = [path('admin-dashboard/', AdminDashboardView.as_view(),name='admin
     path('charts/shortwave-radiation/', AveragedShortwaveRadiationView.as_view(), name='shortwave-radiation-chart'),
     path('charts/wind-speed/', AveragedWindSpeedView.as_view(), name='wind-speed-chart'),
     path('charts/atmospheric-pressure/', AveragedAtmosphericPressureView.as_view(), name='atmospheric-pressure-chart'),
+    
+    # Statistical chart APIs
+    path('charts/statistical/boxplot/', MultiMetricBoxplotView.as_view(), name='multi-metric-boxplot'),
 
 ]

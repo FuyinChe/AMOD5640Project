@@ -14,6 +14,10 @@ from django.db.models.functions import ExtractWeek, Substr, Concat, Cast
 from django.db.models import DateField
 from django.db.models.query import QuerySet
 
+# Swagger documentation
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 from .models import EnvironmentalData
 
 # Set up logger
@@ -1115,3 +1119,253 @@ class AveragedAtmosphericPressureView(APIView):
                 'success': False,
                 'error': f'Failed to retrieve averaged atmospheric pressure data: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+
+
+class MultiMetricBoxplotView(APIView):
+    """Multi-metric boxplot data for statistical analysis across different time periods"""
+    permission_classes = [AllowAny]
+    
+    @swagger_auto_schema(
+        operation_description="Generate boxplot data for multiple environmental metrics across different time periods",
+        manual_parameters=[
+            openapi.Parameter('start_date', openapi.IN_QUERY, description="Start date (YYYY-MM-DD)", type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description="End date (YYYY-MM-DD)", type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter('metrics', openapi.IN_QUERY, description="List of metric names (optional, defaults to all metrics)", type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING), required=False),
+            openapi.Parameter('include_outliers', openapi.IN_QUERY, description="Include outlier data", type=openapi.TYPE_BOOLEAN, default=True),
+            openapi.Parameter('depth', openapi.IN_QUERY, description="Soil temperature depth (5cm, 10cm, 20cm, 25cm, 50cm)", type=openapi.TYPE_STRING, default="5cm"),
+        ],
+        responses={
+            200: openapi.Response(
+                description="Boxplot data for multiple metrics",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'success': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        'data': openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            additional_properties=openapi.Schema(
+                                type=openapi.TYPE_ARRAY,
+                                items=openapi.Schema(
+                                    type=openapi.TYPE_OBJECT,
+                                    properties={
+                                        'period': openapi.Schema(type=openapi.TYPE_STRING),
+                                        'period_code': openapi.Schema(type=openapi.TYPE_STRING),
+                                        'statistics': openapi.Schema(
+                                            type=openapi.TYPE_OBJECT,
+                                            properties={
+                                                'min': openapi.Schema(type=openapi.TYPE_NUMBER),
+                                                'q1': openapi.Schema(type=openapi.TYPE_NUMBER),
+                                                'median': openapi.Schema(type=openapi.TYPE_NUMBER),
+                                                'q3': openapi.Schema(type=openapi.TYPE_NUMBER),
+                                                'max': openapi.Schema(type=openapi.TYPE_NUMBER),
+                                                'outliers': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_NUMBER)),
+                                                'count': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                            }
+                                        )
+                                    }
+                                )
+                            )
+                        ),
+                        'metadata': openapi.Schema(type=openapi.TYPE_OBJECT),
+                    }
+                )
+            ),
+            400: 'Bad Request - Invalid parameters',
+            500: 'Internal Server Error'
+        }
+    )
+    def get(self, request: Request) -> Response:
+        """Get boxplot data for multiple environmental metrics across different time periods"""
+        try:
+            # Get query parameters
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            metrics = request.query_params.getlist('metrics')  # List of metric names (optional, defaults to all)
+            include_outliers = request.query_params.get('include_outliers', 'true').lower() == 'true'
+            depth = request.query_params.get('depth', '5cm')  # For soil temperature
+            
+            # Validate required parameters
+            if not start_date or not end_date:
+                return Response({
+                    'success': False,
+                    'error': 'start_date and end_date are required parameters'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # If no metrics specified, use all available metrics
+            if not metrics:
+                metrics = ['humidity', 'temperature', 'wind_speed', 'rainfall', 'snow_depth', 'shortwave_radiation', 'atmospheric_pressure', 'soil_temperature']
+            
+            # Validate date format
+            try:
+                start_year, start_month, start_day = map(int, str(start_date).split('-'))
+                end_year, end_month, end_day = map(int, str(end_date).split('-'))
+            except (ValueError, TypeError):
+                return Response({
+                    'success': False,
+                    'error': 'Invalid date format. Use YYYY-MM-DD'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Define metric field mappings
+            metric_fields = {
+                'humidity': 'RelativeHumidity_Pct',
+                'temperature': 'AirTemperature_degC',
+                'wind_speed': 'WindSpeed_ms',
+                'rainfall': 'Rainfall_mm',
+                'snow_depth': 'SnowDepth_cm',
+                'shortwave_radiation': 'ShortwaveRadiation_Wm2',
+                'atmospheric_pressure': 'AtmosphericPressure_kPa',
+                'soil_temperature': self._get_soil_temperature_field(depth)
+            }
+            
+            # Validate metrics
+            invalid_metrics = [m for m in metrics if m not in metric_fields]
+            if invalid_metrics:
+                return Response({
+                    'success': False,
+                    'error': f'Invalid metrics: {invalid_metrics}. Valid metrics: {list(metric_fields.keys())}'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Start with base queryset
+            queryset = EnvironmentalData.objects.all()
+            
+            # Apply date filters
+            queryset = queryset.filter(
+                Q(Year__gt=start_year) |
+                (Q(Year=start_year) & Q(Month__gt=start_month)) |
+                (Q(Year=start_year) & Q(Month=start_month) & Q(Day__gte=start_day))
+            ).filter(
+                Q(Year__lt=end_year) |
+                (Q(Year=end_year) & Q(Month__lt=end_month)) |
+                (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
+            )
+            
+            # Generate boxplot data for each metric (overall only)
+            boxplot_data = {}
+            
+            for metric in metrics:
+                field_name = metric_fields[metric]
+                
+                # Filter out null values for this metric
+                metric_queryset = queryset.filter(**{f'{field_name}__isnull': False})
+                
+                # Add performance optimization: limit data points if too many
+                total_count = metric_queryset.count()
+                if total_count > 10000:  # If more than 10k data points
+                    logger.warning(f"Large dataset detected for {metric}: {total_count} records. Consider using smaller date ranges.")
+                
+                # Always use overall grouping for maximum performance
+                boxplot_data[metric] = self._get_overall_boxplot_data(metric_queryset, field_name, include_outliers)
+            
+            return Response({
+                'success': True,
+                'data': boxplot_data,
+                'metadata': {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'metrics': metrics,
+                    'group_by': 'overall',
+                    'include_outliers': include_outliers,
+                    'depth': depth if 'soil_temperature' in metrics else None
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error in MultiMetricBoxplotView: {str(e)}")
+            return Response({
+                'success': False,
+                'error': f'Failed to retrieve boxplot data: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _get_soil_temperature_field(self, depth: str) -> str:
+        """Get the appropriate soil temperature field based on depth"""
+        depth_mapping = {
+            '5cm': 'SoilTemperature_5cm_degC',
+            '10cm': 'SoilTemperature_10cm_degC',
+            '20cm': 'SoilTemperature_20cm_degC',
+            '25cm': 'SoilTemperature_25cm_degC',
+            '50cm': 'SoilTemperature_50cm_degC'
+        }
+        return depth_mapping.get(depth, 'SoilTemperature_5cm_degC')
+    
+    def _calculate_boxplot_statistics(self, values: list, include_outliers: bool = True) -> dict:
+        """Calculate boxplot statistics (min, q1, median, q3, max, outliers)"""
+        if not values:
+            return {
+                'min': None, 'q1': None, 'median': None, 'q3': None, 'max': None,
+                'outliers': [] if include_outliers else None, 'count': 0
+            }
+        
+        # Filter out None values and convert to float for better performance
+        values = [float(v) for v in values if v is not None]
+        if not values:
+            return {
+                'min': None, 'q1': None, 'median': None, 'q3': None, 'max': None,
+                'outliers': [] if include_outliers else None, 'count': 0
+            }
+        
+        n = len(values)
+        
+        # Use numpy for faster statistical calculations if available
+        try:
+            import numpy as np
+            values_array = np.array(values)
+            q1 = float(np.percentile(values_array, 25))
+            median = float(np.median(values_array))
+            q3 = float(np.percentile(values_array, 75))
+        except ImportError:
+            # Fallback to manual calculation
+            values = sorted(values)
+            q1_idx = int(0.25 * n)
+            median_idx = int(0.5 * n)
+            q3_idx = int(0.75 * n)
+            
+            q1 = values[q1_idx] if q1_idx < n else values[-1]
+            median = values[median_idx] if median_idx < n else values[-1]
+            q3 = values[q3_idx] if q3_idx < n else values[-1]
+        
+        # Calculate IQR and outlier bounds
+        iqr = q3 - q1
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+        
+        # Find outliers more efficiently
+        outliers = []
+        if include_outliers:
+            outliers = [v for v in values if v < lower_bound or v > upper_bound]
+        
+        # Get min and max (excluding outliers if requested)
+        if include_outliers:
+            min_val = min(values)
+            max_val = max(values)
+        else:
+            non_outliers = [v for v in values if lower_bound <= v <= upper_bound]
+            min_val = min(non_outliers) if non_outliers else None
+            max_val = max(non_outliers) if non_outliers else None
+        
+        return {
+            'min': round(min_val, 2) if min_val is not None else None,
+            'q1': round(q1, 2),
+            'median': round(median, 2),
+            'q3': round(q3, 2),
+            'max': round(max_val, 2) if max_val is not None else None,
+            'outliers': [round(v, 2) for v in outliers] if include_outliers else None,
+            'count': len(values)
+        }
+    
+
+    
+    def _get_overall_boxplot_data(self, queryset, field_name: str, include_outliers: bool) -> list:
+        """Get overall boxplot data for the entire date range (much faster)"""
+        
+        # Fetch all values at once for maximum performance
+        all_values = list(queryset.values_list(field_name, flat=True))
+        
+        # Calculate statistics for the entire dataset
+        stats = self._calculate_boxplot_statistics(all_values, include_outliers)
+        
+        # Return single period with overall statistics
+        return [{
+            'period': 'Overall',
+            'period_code': 'overall',
+            'statistics': stats
+        }] 

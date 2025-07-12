@@ -96,3 +96,30 @@ class MonthlySummarySerializer(serializers.Serializer):
     atmospheric_pressure_min = serializers.FloatField(allow_null=True)
     atmospheric_pressure_mean = serializers.FloatField(allow_null=True)
     atmospheric_pressure_std = serializers.FloatField(allow_null=True)
+
+
+class BoxplotStatisticsSerializer(serializers.Serializer):
+    """Serializer for boxplot statistics"""
+    min = serializers.FloatField(allow_null=True)
+    q1 = serializers.FloatField(allow_null=True)
+    median = serializers.FloatField(allow_null=True)
+    q3 = serializers.FloatField(allow_null=True)
+    max = serializers.FloatField(allow_null=True)
+    outliers = serializers.ListField(child=serializers.FloatField(), allow_null=True)
+    count = serializers.IntegerField()
+
+
+class BoxplotPeriodSerializer(serializers.Serializer):
+    """Serializer for boxplot period data"""
+    period = serializers.CharField()
+    period_code = serializers.CharField()
+    statistics = BoxplotStatisticsSerializer()
+
+
+class MultiMetricBoxplotSerializer(serializers.Serializer):
+    """Serializer for multi-metric boxplot response"""
+    success = serializers.BooleanField()
+    data = serializers.DictField(
+        child=serializers.ListField(child=BoxplotPeriodSerializer())
+    )
+    metadata = serializers.DictField()
