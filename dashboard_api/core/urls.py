@@ -12,6 +12,7 @@ from .views import (
     # Statistical chart views
     MultiMetricBoxplotView,
 )
+from .averaged_chart_views import MultiMetricHistogramView
 
 
 
@@ -52,5 +53,6 @@ urlpatterns = [path('admin-dashboard/', AdminDashboardView.as_view(),name='admin
     
     # Statistical chart APIs
     path('charts/statistical/boxplot/', MultiMetricBoxplotView.as_view(), name='multi-metric-boxplot'),
+    path('charts/statistical/histogram/', MultiMetricHistogramView.as_view(), name='multi-metric-histogram'),
 
 ]

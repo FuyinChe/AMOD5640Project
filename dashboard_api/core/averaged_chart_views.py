@@ -13,6 +13,7 @@ from django.db.models import Q, Max, Avg, Min, Sum, Count, Value, CharField
 from django.db.models.functions import ExtractWeek, Substr, Concat, Cast
 from django.db.models import DateField
 from django.db.models.query import QuerySet
+from datetime import datetime
 
 # Swagger documentation
 from drf_yasg.utils import swagger_auto_schema
@@ -1369,3 +1370,243 @@ class MultiMetricBoxplotView(APIView):
             'period_code': 'overall',
             'statistics': stats
         }] 
+
+
+class MultiMetricHistogramView(APIView):
+    """
+    Multi-Metric Histogram API (Overall Only)
+    
+    Generates histogram data for multiple environmental metrics across a date range.
+    Processes the entire date range as one dataset for maximum performance.
+    Returns bin counts and percentages for data distribution analysis.
+    """
+    permission_classes = [AllowAny]
+    
+    @swagger_auto_schema(
+        operation_description="Generate histogram data for multiple environmental metrics (overall processing)",
+        manual_parameters=[
+            openapi.Parameter('start_date', openapi.IN_QUERY, description="Start date (YYYY-MM-DD)", type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description="End date (YYYY-MM-DD)", type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter('metrics', openapi.IN_QUERY, description="List of metric names (optional, defaults to all metrics)", type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING), required=False),
+            openapi.Parameter('bins', openapi.IN_QUERY, description="Number of histogram bins", type=openapi.TYPE_INTEGER, default=20),
+            openapi.Parameter('depth', openapi.IN_QUERY, description="Soil temperature depth (5cm, 10cm, 20cm, 25cm, 50cm)", type=openapi.TYPE_STRING, default="5cm"),
+        ],
+        responses={
+            200: openapi.Response('Histogram data generated successfully'),
+            400: openapi.Response('Bad request - invalid parameters'),
+            500: openapi.Response('Internal server error')
+        }
+    )
+    def get(self, request):
+        try:
+            # Get query parameters
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            metrics = request.query_params.getlist('metrics')  # List of metric names (optional, defaults to all)
+            bins = request.query_params.get('bins', '20')  # Number of bins
+            depth = request.query_params.get('depth', '5cm')  # For soil temperature
+            
+            # Validate required parameters
+            if not start_date or not end_date:
+                return Response({
+                    'success': False,
+                    'error': 'start_date and end_date are required parameters'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # If no metrics specified, use all available metrics
+            if not metrics:
+                metrics = ['humidity', 'temperature', 'wind_speed', 'rainfall', 'snow_depth', 'shortwave_radiation', 'atmospheric_pressure', 'soil_temperature']
+            
+            # Validate date format
+            try:
+                start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({
+                    'success': False,
+                    'error': 'Invalid date format. Use YYYY-MM-DD format.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate bins parameter
+            try:
+                bins = int(bins)
+                if bins < 1 or bins > 100:
+                    return Response({
+                        'success': False,
+                        'error': 'bins must be between 1 and 100'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            except ValueError:
+                return Response({
+                    'success': False,
+                    'error': 'bins must be a valid integer'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate metrics
+            valid_metrics = ['humidity', 'temperature', 'wind_speed', 'rainfall', 'snow_depth', 'shortwave_radiation', 'atmospheric_pressure', 'soil_temperature']
+            invalid_metrics = [m for m in metrics if m not in valid_metrics]
+            if invalid_metrics:
+                return Response({
+                    'success': False,
+                    'error': f'Invalid metrics: {", ".join(invalid_metrics)}. Valid metrics: {", ".join(valid_metrics)}'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate depth for soil temperature
+            if 'soil_temperature' in metrics:
+                valid_depths = ['5cm', '10cm', '20cm', '25cm', '50cm']
+                if depth not in valid_depths:
+                    return Response({
+                        'success': False,
+                        'error': f'Invalid depth for soil_temperature: {depth}. Valid depths: {", ".join(valid_depths)}'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Map metric names to database fields
+            metric_fields = {
+                'humidity': 'RelativeHumidity_Pct',
+                'temperature': 'AirTemperature_degC',
+                'wind_speed': 'WindSpeed_ms',
+                'rainfall': 'Rainfall_mm',
+                'snow_depth': 'SnowDepth_cm',
+                'shortwave_radiation': 'ShortwaveRadiation_Wm2',
+                'atmospheric_pressure': 'AtmosphericPressure_kPa',
+                'soil_temperature': f'SoilTemperature_{depth}_degC'
+            }
+            
+            # Build base queryset using Year, Month, Day fields
+            start_year, start_month, start_day = start_date_obj.year, start_date_obj.month, start_date_obj.day
+            end_year, end_month, end_day = end_date_obj.year, end_date_obj.month, end_date_obj.day
+            
+            queryset = EnvironmentalData.objects.filter(
+                Q(Year__gt=start_year) |
+                (Q(Year=start_year) & Q(Month__gt=start_month)) |
+                (Q(Year=start_year) & Q(Month=start_month) & Q(Day__gte=start_day))
+            ).filter(
+                Q(Year__lt=end_year) |
+                (Q(Year=end_year) & Q(Month__lt=end_month)) |
+                (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
+            )
+            
+            # Generate histogram data for each metric with performance optimization
+            histogram_data = {}
+            
+            for metric in metrics:
+                field_name = metric_fields[metric]
+                
+                # Filter out null values for this metric
+                metric_queryset = queryset.filter(**{f'{field_name}__isnull': False})
+                
+                # Performance optimization: limit data points if too many
+                total_count = metric_queryset.count()
+                if total_count > 50000:  # If more than 50k data points
+                    logger.warning(f"Large dataset detected for {metric}: {total_count} records. Sampling data for performance.")
+                    # Sample data for better performance
+                    sample_size = min(50000, total_count)
+                    metric_queryset = metric_queryset.order_by('?')[:sample_size]
+                elif total_count > 10000:
+                    logger.warning(f"Large dataset detected for {metric}: {total_count} records. Consider using smaller date ranges.")
+                
+                # Generate histogram data
+                histogram_data[metric] = self._get_histogram_data(metric_queryset, field_name, bins)
+            
+            return Response({
+                'success': True,
+                'data': histogram_data,
+                'metadata': {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'metrics': metrics,
+                    'bins': bins,
+                    'depth': depth if 'soil_temperature' in metrics else None
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"Error in histogram API: {str(e)}")
+            return Response({
+                'success': False,
+                'error': 'Internal server error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _get_histogram_data(self, queryset, field_name: str, bins: int) -> dict:
+        """Generate histogram data for a metric with performance optimization"""
+        try:
+            # Get all values for this metric (optimized)
+            values = list(queryset.values_list(field_name, flat=True))
+            
+            if not values:
+                return {
+                    'bins': [],
+                    'statistics': {
+                        'mean': 0,
+                        'median': 0,
+                        'std_dev': 0,
+                        'min': 0,
+                        'max': 0,
+                        'total_count': 0
+                    }
+                }
+            
+            # Performance optimization: limit data for very large datasets
+            if len(values) > 100000:
+                import random
+                values = random.sample(values, 100000)
+                logger.info(f"Sampled {len(values)} values from {field_name} for histogram calculation")
+            
+            # Calculate statistics using numpy (optimized)
+            import numpy as np
+            values_array = np.array(values, dtype=np.float64)
+            
+            # Use numpy's optimized functions
+            stats = {
+                'mean': float(np.mean(values_array)),
+                'median': float(np.median(values_array)),
+                'std_dev': float(np.std(values_array)),
+                'min': float(np.min(values_array)),
+                'max': float(np.max(values_array)),
+                'total_count': len(values)
+            }
+            
+            # Create histogram bins (optimized)
+            hist, bin_edges = np.histogram(values_array, bins=bins, density=False)
+            
+            # Format bins data (optimized)
+            bins_data = []
+            total_count = stats['total_count']
+            
+            for i in range(len(hist)):
+                bin_start = float(bin_edges[i])
+                bin_end = float(bin_edges[i + 1])
+                count = int(hist[i])
+                percentage = (count / total_count) * 100 if total_count > 0 else 0
+                
+                bins_data.append({
+                    'bin_start': round(bin_start, 2),
+                    'bin_end': round(bin_end, 2),
+                    'count': count,
+                    'percentage': round(percentage, 2)
+                })
+            
+            return {
+                'bins': bins_data,
+                'statistics': {
+                    'mean': round(stats['mean'], 2),
+                    'median': round(stats['median'], 2),
+                    'std_dev': round(stats['std_dev'], 2),
+                    'min': round(stats['min'], 2),
+                    'max': round(stats['max'], 2),
+                    'total_count': stats['total_count']
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating histogram for {field_name}: {str(e)}")
+            return {
+                'bins': [],
+                'statistics': {
+                    'mean': 0,
+                    'median': 0,
+                    'std_dev': 0,
+                    'min': 0,
+                    'max': 0,
+                    'total_count': 0
+                }
+            } 
