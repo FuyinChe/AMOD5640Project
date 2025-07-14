@@ -8,7 +8,11 @@ from .views import (
     RawSnowDepthView, RawRainfallView, RawHumidityView, RawSoilTemperatureView, RawMultiMetricView,
     # Averaged chart views
     AveragedSnowDepthView, AveragedRainfallView, AveragedHumidityView, AveragedSoilTemperatureView,
+    AveragedShortwaveRadiationView, AveragedWindSpeedView, AveragedAtmosphericPressureView,
+    # Statistical chart views
+    MultiMetricBoxplotView,
 )
+from .averaged_chart_views import MultiMetricHistogramView
 
 
 
@@ -43,5 +47,12 @@ urlpatterns = [path('admin-dashboard/', AdminDashboardView.as_view(),name='admin
     path('charts/rainfall/', AveragedRainfallView.as_view(), name='rainfall-chart'),
     path('charts/humidity/', AveragedHumidityView.as_view(), name='humidity-chart'),
     path('charts/soil-temperature/', AveragedSoilTemperatureView.as_view(), name='soil-temperature-chart'),
+    path('charts/shortwave-radiation/', AveragedShortwaveRadiationView.as_view(), name='shortwave-radiation-chart'),
+    path('charts/wind-speed/', AveragedWindSpeedView.as_view(), name='wind-speed-chart'),
+    path('charts/atmospheric-pressure/', AveragedAtmosphericPressureView.as_view(), name='atmospheric-pressure-chart'),
+    
+    # Statistical chart APIs
+    path('charts/statistical/boxplot/', MultiMetricBoxplotView.as_view(), name='multi-metric-boxplot'),
+    path('charts/statistical/histogram/', MultiMetricHistogramView.as_view(), name='multi-metric-histogram'),
 
 ]
