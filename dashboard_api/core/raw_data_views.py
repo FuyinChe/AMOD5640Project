@@ -6,7 +6,7 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.db.models import Q, Max
 
 # Swagger documentation
@@ -45,7 +45,7 @@ def validate_and_get_limit(request, default_limit=1000, max_limit=10000):
 
 class RawSnowDepthView(APIView):
     """Raw snow depth data for detailed analysis"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request):
         """Get raw snow depth data points for detailed analysis"""
@@ -134,7 +134,7 @@ class RawSnowDepthView(APIView):
 
 class RawRainfallView(APIView):
     """Raw rainfall data for detailed analysis"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request):
         """Get raw rainfall data points for detailed analysis"""
@@ -223,7 +223,7 @@ class RawRainfallView(APIView):
 
 class RawHumidityView(APIView):
     """Raw humidity data for detailed analysis"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request):
         """Get raw humidity data points for detailed analysis"""
@@ -311,7 +311,7 @@ class RawHumidityView(APIView):
 
 class RawSoilTemperatureView(APIView):
     """Raw soil temperature data for detailed analysis"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request):
         """Get raw soil temperature data points for detailed analysis"""
@@ -414,7 +414,7 @@ class RawSoilTemperatureView(APIView):
 
 class RawMultiMetricView(APIView):
     """Raw multi-metric data for detailed analysis"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request):
         """Get raw multi-metric data points for detailed analysis"""

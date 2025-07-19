@@ -5,7 +5,7 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.db.models import Q, Avg, Max, Min, StdDev, Sum, Count
 import calendar
 
@@ -52,7 +52,7 @@ class EnvironmentalDataList(generics.ListAPIView):
 
 class SampleEnvironmentalDataList(generics.ListAPIView):
     """List sample environmental data with filtering"""
-    permission_classes = [AllowAny]  # No authentication required
+    permission_classes = [AllowAny]  # No authentication required - public sample data
     serializer_class = EnvironmentalDataSerializer
     
     # return 40 random value with filtered data
@@ -68,7 +68,7 @@ class SampleEnvironmentalDataList(generics.ListAPIView):
 
 class MonthlySummaryView(APIView):
     """Monthly summary view for environmental data aggregations"""
-    permission_classes = [AllowAny]  # Allow public access for now
+    permission_classes = [IsAuthenticated]  # Authentication required
     
     @swagger_auto_schema(
         operation_description="Get monthly summarized environmental data with statistical aggregations",
@@ -243,7 +243,7 @@ class MonthlySummaryView(APIView):
 
 class SnowDepthChartView(APIView):
     """Snow depth time series data for charts"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request):
         """Get snow depth data over time for charting"""
@@ -383,7 +383,7 @@ class SnowDepthChartView(APIView):
 
 class RainfallChartView(APIView):
     """Rainfall time series data for charts"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request):
         """Get rainfall data over time for charting"""
@@ -524,7 +524,7 @@ class RainfallChartView(APIView):
 
 class SoilTemperatureChartView(APIView):
     """Soil temperature time series data for charts"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request):
         """Get soil temperature data over time for charting"""
@@ -626,7 +626,7 @@ class SoilTemperatureChartView(APIView):
 
 class MultiMetricChartView(APIView):
     """Multi-metric time series data for comparison charts"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request):
         """Get multiple metrics over time for comparison charts"""
