@@ -5,7 +5,7 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from .services import send_email_with_smtp
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class TestEmailView(APIView):
     """Test email configuration view"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def post(self, request):
         """Test endpoint to verify email configuration"""
@@ -46,7 +46,7 @@ class TestEmailView(APIView):
 
 class TestMultipleEmailView(APIView):
     """Test multiple email accounts view"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     
     def post(self, request):
         """Test endpoint to test different Gmail accounts"""
