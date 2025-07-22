@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -171,6 +172,18 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+}
+
+# -------------------------------------------------------------------
+# JWT Token Lifetime Settings (SimpleJWT)
+# These settings control how long access and refresh tokens are valid.
+# - ACCESS_TOKEN_LIFETIME: How long a user stays logged in before needing to refresh (default: 2 hours)
+# - REFRESH_TOKEN_LIFETIME: How long a refresh token is valid to obtain new access tokens (default: 14 days)
+# Adjust these values to balance security and user convenience.
+# -------------------------------------------------------------------
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),  # Access token valid for 2 hours
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=14), # Refresh token valid for 14 days
 }
 
 #Allow cors

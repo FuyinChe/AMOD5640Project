@@ -19,7 +19,10 @@ from .averaged_chart_views import MultiMetricHistogramView, CorrelationAnalysisV
 
 
 
-urlpatterns = [path('admin-dashboard/', AdminDashboardView.as_view(),name='admin-dashboard'),
+# URL patterns for the core app, mapping API endpoints to their corresponding views.
+# This includes authentication, environmental data, raw data, chart, and email endpoints.
+urlpatterns = [
+    path('admin-dashboard/', AdminDashboardView.as_view(),name='admin-dashboard'),
     # user register    
     path('register/', UserRegisterView.as_view(),name='user-register'),    
     #email verify

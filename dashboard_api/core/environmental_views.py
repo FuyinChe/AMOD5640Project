@@ -1,5 +1,6 @@
 """
-Environmental data views module
+Environmental data views module for handling environmental data APIs.
+Includes endpoints for sample data, monthly summaries, and time series charts.
 """
 import logging
 from rest_framework.views import APIView
@@ -51,7 +52,7 @@ class EnvironmentalDataList(generics.ListAPIView):
 
 
 class SampleEnvironmentalDataList(generics.ListAPIView):
-    """List sample environmental data with filtering"""
+    """Public API endpoint to provide a sample of environmental data for guest users (no authentication required)."""
     permission_classes = [AllowAny]  # No authentication required - public sample data
     serializer_class = EnvironmentalDataSerializer
     
@@ -67,8 +68,7 @@ class SampleEnvironmentalDataList(generics.ListAPIView):
 
 
 class MonthlySummaryView(APIView):
-    """Monthly summary view for environmental data aggregations"""
-    permission_classes = [IsAuthenticated]  # Authentication required
+    """API endpoint to provide monthly summary aggregations of environmental data. Requires authentication."""
     
     @swagger_auto_schema(
         operation_description="Get monthly summarized environmental data with statistical aggregations",

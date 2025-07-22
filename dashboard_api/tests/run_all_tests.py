@@ -9,14 +9,14 @@ import subprocess
 import time
 
 def print_header():
-    """Print test suite header"""
+    """Print a header for the test suite runner, including project and folder info."""
     print("🚀 Trent Farm Data - Test Suite Runner")
     print("=" * 60)
     print("📁 All test files are organized in the tests/ folder")
     print()
 
 def list_test_files():
-    """List all available test files"""
+    """List all available test files and their descriptions for the user to choose from."""
     test_files = [
         ("test_email.py", "Comprehensive email system testing"),
         ("test_email_quick.py", "Quick email troubleshooting"),
@@ -58,7 +58,7 @@ def run_test(test_file):
         return False
 
 def run_all_tests():
-    """Run all test files in sequence"""
+    """Run all test files in sequence, stopping if any test fails, and print a summary."""
     test_files = [
         "test_email.py",
         "test_email_quick.py", 
@@ -101,7 +101,7 @@ def run_all_tests():
         print("⚠️ Some tests failed. Check the output above for details.")
 
 def main():
-    """Main test runner function"""
+    """Main entry point for the test runner. Handles user interaction and test selection."""
     print_header()
     
     # Check if Django server is running (for API tests)

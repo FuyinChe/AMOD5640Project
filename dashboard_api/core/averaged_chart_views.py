@@ -1,6 +1,6 @@
 """
-Averaged chart views module for environmental data visualizations
-Returns aggregated values over time periods (hourly, daily, monthly)
+Averaged chart views module for environmental data visualizations.
+Provides API endpoints for aggregated environmental metrics (hourly, daily, monthly).
 """
 import logging
 from typing import Any, Dict, List, Optional

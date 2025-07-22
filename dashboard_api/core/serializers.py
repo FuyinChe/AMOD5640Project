@@ -6,6 +6,7 @@ from .models import EnvironmentalData
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating a new user with email and password, including validation for unique email."""
     email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True, required=True, min_length=8)
 
@@ -14,11 +15,13 @@ class UserCreateSerializer(serializers.ModelSerializer):
         fields = ('email', 'username', 'password')
 
     def validate_email(self, value):
+        """Ensure the email is not already registered in the system."""
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Email already registered.")
         return value
 
     def create(self, validated_data):
+        """Create a new user and associated Customer profile with the provided validated data."""
         email = validated_data['email']
         username = validated_data.get('username') or email.split('@')[0]
         password = validated_data['password']

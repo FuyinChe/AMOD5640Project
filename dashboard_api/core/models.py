@@ -5,11 +5,13 @@ import random
 from django.utils import timezone
 
 # generate random verification code
+# Utility function to generate a 6-digit code for email verification
 def generate_verification_code():
     return str(random.randint(100000, 999999))
 
 # customize the customers or users
 class Customer(models.Model): 
+    """Model to store additional customer/user information, including email verification status and code."""
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)  # allow null for migration
     email_verified = models.BooleanField(default=False)
     verification_code = models.CharField(max_length=6, blank=True, null=True)
@@ -22,11 +24,13 @@ class Customer(models.Model):
 
 # email verification code
 class EmailVerificationCode(models.Model):
+    """Model to store email verification codes and their creation time for users."""
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     code = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def is_expired(self):
+        """Check if the verification code has expired (valid for 10 minutes)."""
         return timezone.now() > (self.created_at + timedelta(minutes=10))
 
 #define environmental data class
