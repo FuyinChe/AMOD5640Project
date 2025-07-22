@@ -56,8 +56,9 @@ from drf_yasg import openapi
 
 class AdminTestView(APIView):
     """
-    Simple test endpoint to debug admin authentication.
-    Accepts both JWT and session authentication.
+    API endpoint for testing admin authentication and permissions.
+    Only accessible by admin users. Accepts both JWT and session authentication.
+    Returns user and permission details for debugging.
     """
     permission_classes = [IsAdmin]
     authentication_classes = [SessionAuthentication]  # Allow session authentication

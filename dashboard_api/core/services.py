@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def generate_verification_code():
-    """Generate a random 6-digit verification code"""
+    """Generate a random 6-digit verification code for email verification purposes."""
     return str(random.randint(100000, 999999))
 
 
@@ -121,7 +121,7 @@ def send_verification_email(email, verification_code, code_expires_at, is_resend
 
 
 def create_user_with_verification(email, password):
-    """Create a new user with verification code"""
+    """Create a new user and associated Customer profile, generate a verification code, and set its expiry."""
     from django.contrib.auth.models import User
     from .models import Customer
     
@@ -154,7 +154,7 @@ def create_user_with_verification(email, password):
 
 
 def verify_user_email(email, code):
-    """Verify user email with provided code"""
+    """Verify a user's email using the provided verification code. Returns a tuple (success, message)."""
     from django.contrib.auth.models import User
     from .models import Customer
     

@@ -174,6 +174,13 @@ REST_FRAMEWORK = {
     ),
 }
 
+# -------------------------------------------------------------------
+# JWT Token Lifetime Settings (SimpleJWT)
+# These settings control how long access and refresh tokens are valid.
+# - ACCESS_TOKEN_LIFETIME: How long a user stays logged in before needing to refresh (default: 2 hours)
+# - REFRESH_TOKEN_LIFETIME: How long a refresh token is valid to obtain new access tokens (default: 14 days)
+# Adjust these values to balance security and user convenience.
+# -------------------------------------------------------------------
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),  # Access token valid for 2 hours
     'REFRESH_TOKEN_LIFETIME': timedelta(days=14), # Refresh token valid for 14 days
