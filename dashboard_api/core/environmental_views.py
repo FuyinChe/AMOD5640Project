@@ -72,12 +72,12 @@ class MonthlySummaryView(APIView):
     """API endpoint to provide monthly summary aggregations of environmental data. Requires authentication."""
     
     @swagger_auto_schema(
-        operation_description="Get monthly summarized environmental data with statistical aggregations",
+        operation_description="Get monthly summarized environmental data with statistical aggregations.\n\nNote: The 'start_date' and 'end_date' parameters accept both quoted and unquoted YYYY-MM-DD strings (e.g., 2023-01-01 or '2023-01-01').",
         manual_parameters=[
             openapi.Parameter('year', openapi.IN_QUERY, description="Filter by year", type=openapi.TYPE_INTEGER),
             openapi.Parameter('month', openapi.IN_QUERY, description="Filter by month", type=openapi.TYPE_INTEGER),
-            openapi.Parameter('start_date', openapi.IN_QUERY, description="Start date (YYYY-MM-DD)", type=openapi.TYPE_STRING),
-            openapi.Parameter('end_date', openapi.IN_QUERY, description="End date (YYYY-MM-DD)", type=openapi.TYPE_STRING),
+            openapi.Parameter('start_date', openapi.IN_QUERY, description="Start date (YYYY-MM-DD, quoted or unquoted)", type=openapi.TYPE_STRING),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description="End date (YYYY-MM-DD, quoted or unquoted)", type=openapi.TYPE_STRING),
         ],
         responses={
             200: openapi.Response(
@@ -244,7 +244,7 @@ class MonthlySummaryView(APIView):
 
 
 class SnowDepthChartView(APIView):
-    """Snow depth time series data for charts"""
+    """Snow depth time series data for charts.\n\nNote: The 'start_date' and 'end_date' parameters accept both quoted and unquoted YYYY-MM-DD strings (e.g., 2023-01-01 or '2023-01-01')."""
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -386,7 +386,7 @@ class SnowDepthChartView(APIView):
 
 
 class RainfallChartView(APIView):
-    """Rainfall time series data for charts"""
+    """Rainfall time series data for charts.\n\nNote: The 'start_date' and 'end_date' parameters accept both quoted and unquoted YYYY-MM-DD strings (e.g., 2023-01-01 or '2023-01-01')."""
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -529,7 +529,7 @@ class RainfallChartView(APIView):
 
 
 class SoilTemperatureChartView(APIView):
-    """Soil temperature time series data for charts"""
+    """Soil temperature time series data for charts.\n\nNote: The 'start_date' and 'end_date' parameters accept both quoted and unquoted YYYY-MM-DD strings (e.g., 2023-01-01 or '2023-01-01')."""
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -633,7 +633,7 @@ class SoilTemperatureChartView(APIView):
 
 
 class MultiMetricChartView(APIView):
-    """Multi-metric time series data for comparison charts"""
+    """Multi-metric time series data for comparison charts.\n\nNote: The 'start_date' and 'end_date' parameters accept both quoted and unquoted YYYY-MM-DD strings (e.g., 2023-01-01 or '2023-01-01')."""
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -752,10 +752,11 @@ class DownloadEnvironmentalDataView(APIView):
     """
     API endpoint to download environmental data with advanced filtering.
     Supports filtering by date range (start_date, end_date) and selecting specific fields (fields).
+    Note: The 'start_date' and 'end_date' parameters accept both quoted and unquoted YYYY-MM-DD strings (e.g., 2023-01-01 or '2023-01-01').
     Requires authentication (JWT).
     Query params:
-      - start_date: YYYY-MM-DD (optional)
-      - end_date: YYYY-MM-DD (optional)
+      - start_date: YYYY-MM-DD (optional, quoted or unquoted)
+      - end_date: YYYY-MM-DD (optional, quoted or unquoted)
       - fields: comma-separated list of field names (optional, default: all fields)
     """
     permission_classes = [IsAuthenticated]
