@@ -9,6 +9,7 @@ from rest_framework import status, generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.db.models import Q, Avg, Max, Min, StdDev, Sum, Count
 import calendar
+from datetime import datetime
 
 # Swagger documentation
 from drf_yasg.utils import swagger_auto_schema
@@ -71,12 +72,12 @@ class MonthlySummaryView(APIView):
     """API endpoint to provide monthly summary aggregations of environmental data. Requires authentication."""
     
     @swagger_auto_schema(
-        operation_description="Get monthly summarized environmental data with statistical aggregations",
+        operation_description="Get monthly summarized environmental data with statistical aggregations.\n\nNote: The 'start_date' and 'end_date' parameters accept both quoted and unquoted YYYY-MM-DD strings (e.g., 2023-01-01 or '2023-01-01').",
         manual_parameters=[
             openapi.Parameter('year', openapi.IN_QUERY, description="Filter by year", type=openapi.TYPE_INTEGER),
             openapi.Parameter('month', openapi.IN_QUERY, description="Filter by month", type=openapi.TYPE_INTEGER),
-            openapi.Parameter('start_date', openapi.IN_QUERY, description="Start date (YYYY-MM-DD)", type=openapi.TYPE_STRING),
-            openapi.Parameter('end_date', openapi.IN_QUERY, description="End date (YYYY-MM-DD)", type=openapi.TYPE_STRING),
+            openapi.Parameter('start_date', openapi.IN_QUERY, description="Start date (YYYY-MM-DD, quoted or unquoted)", type=openapi.TYPE_STRING),
+            openapi.Parameter('end_date', openapi.IN_QUERY, description="End date (YYYY-MM-DD, quoted or unquoted)", type=openapi.TYPE_STRING),
         ],
         responses={
             200: openapi.Response(
@@ -101,7 +102,6 @@ class MonthlySummaryView(APIView):
         Similar to pandas df.describe() but grouped by month.
         """
         try:
-            from datetime import datetime
             
             # Get query parameters for filtering
             year = request.query_params.get('year')
@@ -121,6 +121,7 @@ class MonthlySummaryView(APIView):
             # Apply date range filters if provided
             if start_date:
                 try:
+                    start_date = start_date.strip().strip("'\"")
                     start_year, start_month, start_day = map(int, start_date.split('-'))
                     queryset = queryset.filter(
                         Q(Year__gt=start_year) |
@@ -135,6 +136,7 @@ class MonthlySummaryView(APIView):
             
             if end_date:
                 try:
+                    end_date = end_date.strip().strip("'\"")
                     end_year, end_month, end_day = map(int, end_date.split('-'))
                     queryset = queryset.filter(
                         Q(Year__lt=end_year) |
@@ -242,7 +244,7 @@ class MonthlySummaryView(APIView):
 
 
 class SnowDepthChartView(APIView):
-    """Snow depth time series data for charts"""
+    """Snow depth time series data for charts.\n\nNote: The 'start_date' and 'end_date' parameters accept both quoted and unquoted YYYY-MM-DD strings (e.g., 2023-01-01 or '2023-01-01')."""
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -265,6 +267,7 @@ class SnowDepthChartView(APIView):
             if month:
                 queryset = queryset.filter(Month=int(month))
             if start_date:
+                start_date = start_date.strip().strip("'\"")
                 start_year, start_month, start_day = map(int, start_date.split('-'))
                 queryset = queryset.filter(
                     Q(Year__gt=start_year) |
@@ -272,6 +275,7 @@ class SnowDepthChartView(APIView):
                     (Q(Year=start_year) & Q(Month=start_month) & Q(Day__gte=start_day))
                 )
             if end_date:
+                end_date = end_date.strip().strip("'\"")
                 end_year, end_month, end_day = map(int, end_date.split('-'))
                 queryset = queryset.filter(
                     Q(Year__lt=end_year) |
@@ -349,7 +353,7 @@ class SnowDepthChartView(APIView):
                         'date': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
                         'year': record['Year'],
                         'month': record['Month'],
-                        'day': record['Day'],
+                        'day': record.Day,
                         'avg_snow_depth_cm': round(record['avg_snow_depth'], 2),
                         'max_snow_depth_cm': record['max_snow_depth'],
                         'min_snow_depth_cm': record['min_snow_depth'],
@@ -382,7 +386,7 @@ class SnowDepthChartView(APIView):
 
 
 class RainfallChartView(APIView):
-    """Rainfall time series data for charts"""
+    """Rainfall time series data for charts.\n\nNote: The 'start_date' and 'end_date' parameters accept both quoted and unquoted YYYY-MM-DD strings (e.g., 2023-01-01 or '2023-01-01')."""
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -406,6 +410,7 @@ class RainfallChartView(APIView):
             if month:
                 queryset = queryset.filter(Month=int(month))
             if start_date:
+                start_date = start_date.strip().strip("'\"")
                 start_year, start_month, start_day = map(int, start_date.split('-'))
                 queryset = queryset.filter(
                     Q(Year__gt=start_year) |
@@ -413,6 +418,7 @@ class RainfallChartView(APIView):
                     (Q(Year=start_year) & Q(Month=start_month) & Q(Day__gte=start_day))
                 )
             if end_date:
+                end_date = end_date.strip().strip("'\"")
                 end_year, end_month, end_day = map(int, end_date.split('-'))
                 queryset = queryset.filter(
                     Q(Year__lt=end_year) |
@@ -523,7 +529,7 @@ class RainfallChartView(APIView):
 
 
 class SoilTemperatureChartView(APIView):
-    """Soil temperature time series data for charts"""
+    """Soil temperature time series data for charts.\n\nNote: The 'start_date' and 'end_date' parameters accept both quoted and unquoted YYYY-MM-DD strings (e.g., 2023-01-01 or '2023-01-01')."""
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -562,6 +568,7 @@ class SoilTemperatureChartView(APIView):
             if month:
                 queryset = queryset.filter(Month=int(month))
             if start_date:
+                start_date = start_date.strip().strip("'\"")
                 start_year, start_month, start_day = map(int, start_date.split('-'))
                 queryset = queryset.filter(
                     Q(Year__gt=start_year) |
@@ -569,6 +576,7 @@ class SoilTemperatureChartView(APIView):
                     (Q(Year=start_year) & Q(Month=start_month) & Q(Day__gte=start_day))
                 )
             if end_date:
+                end_date = end_date.strip().strip("'\"")
                 end_year, end_month, end_day = map(int, end_date.split('-'))
                 queryset = queryset.filter(
                     Q(Year__lt=end_year) |
@@ -625,7 +633,7 @@ class SoilTemperatureChartView(APIView):
 
 
 class MultiMetricChartView(APIView):
-    """Multi-metric time series data for comparison charts"""
+    """Multi-metric time series data for comparison charts.\n\nNote: The 'start_date' and 'end_date' parameters accept both quoted and unquoted YYYY-MM-DD strings (e.g., 2023-01-01 or '2023-01-01')."""
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -672,6 +680,7 @@ class MultiMetricChartView(APIView):
             if month:
                 queryset = queryset.filter(Month=int(month))
             if start_date:
+                start_date = start_date.strip().strip("'\"")
                 start_year, start_month, start_day = map(int, start_date.split('-'))
                 queryset = queryset.filter(
                     Q(Year__gt=start_year) |
@@ -679,6 +688,7 @@ class MultiMetricChartView(APIView):
                     (Q(Year=start_year) & Q(Month=start_month) & Q(Day__gte=start_day))
                 )
             if end_date:
+                end_date = end_date.strip().strip("'\"")
                 end_year, end_month, end_day = map(int, end_date.split('-'))
                 queryset = queryset.filter(
                     Q(Year__lt=end_year) |
@@ -736,3 +746,89 @@ class MultiMetricChartView(APIView):
                 'success': False,
                 'error': f'Failed to retrieve multi-metric data: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+
+
+class DownloadEnvironmentalDataView(APIView):
+    """
+    API endpoint to download environmental data with advanced filtering.
+    Supports filtering by date range (start_date, end_date) and selecting specific fields (fields).
+    Note: The 'start_date' and 'end_date' parameters accept both quoted and unquoted YYYY-MM-DD strings (e.g., 2023-01-01 or '2023-01-01').
+    Requires authentication (JWT).
+    Query params:
+      - start_date: YYYY-MM-DD (optional, quoted or unquoted)
+      - end_date: YYYY-MM-DD (optional, quoted or unquoted)
+      - fields: comma-separated list of field names (optional, default: all fields)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Parse date range
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        fields = request.query_params.get('fields')
+
+        # Set default date range if not provided
+        if not start_date and not end_date:
+            start_date = '2023-01-01'
+            end_date = '2023-12-31'  # Default to full year 2023
+            # Comment: Default date range is 2023-01-01 to 2023-12-31 if not specified
+
+        queryset = EnvironmentalData.objects.all()
+        # Filter by date range if provided
+        if start_date:
+            if isinstance(start_date, list):
+                start_date = start_date[0]
+            start_date = start_date.strip().strip("'\"")
+            print(f"DEBUG: start_date received: {repr(start_date)}")
+            print("DEBUG: start_date ords:", [ord(c) for c in start_date])
+            try:
+                start = datetime.strptime(start_date, '%Y-%m-%d')
+                print(f"DEBUG: Parsed start: {start.year}-{start.month}-{start.day}")
+            except Exception as e:
+                return Response({'error': f'Invalid start_date value: {repr(start_date)}. Use YYYY-MM-DD.'}, status=400)
+            try:
+                queryset = queryset.filter(
+                    Q(Year__gt=start.year) |
+                    Q(Year=start.year, Month__gt=start.month) |
+                    Q(Year=start.year, Month=start.month, Day__gte=start.day)
+                )
+            except Exception as e:
+                return Response({'error': f'Error in start_date filtering: {str(e)}'}, status=400)
+        if end_date:
+            if isinstance(end_date, list):
+                end_date = end_date[0]
+            end_date = end_date.strip().strip("'\"")
+            print(f"DEBUG: end_date received: {repr(end_date)}")
+            try:
+                end = datetime.strptime(end_date, '%Y-%m-%d')
+                print(f"DEBUG: Parsed end: {end.year}-{end.month}-{end.day}")
+            except Exception as e:
+                return Response({'error': f'Invalid end_date value: {repr(end_date)}. Use YYYY-MM-DD.'}, status=400)
+            try:
+                queryset = queryset.filter(
+                    Q(Year__lt=end.year) |
+                    Q(Year=end.year, Month__lt=end.month) |
+                    Q(Year=end.year, Month=end.month, Day__lte=end.day)
+                )
+            except Exception as e:
+                return Response({'error': f'Error in end_date filtering: {str(e)}'}, status=400)
+
+        # Limit to 10,000 records for performance
+        queryset = queryset.order_by('-Year', '-Month', '-Day')[:10000]
+
+        # Handle field selection with validation
+        if fields:
+            field_list = [f.strip() for f in fields.split(',') if f.strip()]
+            # Always include id for uniqueness
+            if 'id' not in field_list:
+                field_list.append('id')
+            # Validate fields
+            valid_fields = set(f.name for f in EnvironmentalData._meta.get_fields())
+            invalid_fields = [f for f in field_list if f not in valid_fields]
+            if invalid_fields:
+                return Response({'error': f'Invalid field(s): {", ".join(invalid_fields)}'}, status=400)
+            data = list(queryset.values(*field_list))
+        else:
+            data = list(queryset.values())
+
+        return Response(data) 

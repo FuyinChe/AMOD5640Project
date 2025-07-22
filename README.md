@@ -114,6 +114,22 @@ GET /api/sample/environmental-data/    # Sample data
 GET /api/monthly-summary/              # Monthly aggregations
 ```
 
+#### Download Environmental Data
+```
+GET /api/download/environmental-data/  # Download filtered environmental data (authenticated)
+```
+- **Authentication:** Required (JWT or session)
+- **Query Parameters:**
+  - `start_date` (optional, YYYY-MM-DD, quoted or unquoted)
+  - `end_date` (optional, YYYY-MM-DD, quoted or unquoted)
+  - `fields` (optional, comma-separated list of field names, default: all fields)
+- **Performance Limit:** Max 10,000 records per request
+- **Example:**
+  ```
+  GET /api/download/environmental-data/?start_date=2023-01-01&end_date=2023-12-31&fields=Year,Month,Day,AirTemperature_degC
+  ```
+- **Note:** If no date range is provided, defaults to the full year 2023. The `fields` parameter must match valid model fields; invalid fields will return a 400 error.
+
 #### Raw Data APIs
 ```
 GET /api/raw/snow-depth/              # Raw snow depth data
