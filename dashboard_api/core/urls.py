@@ -13,6 +13,7 @@ from .views import (
     MultiMetricBoxplotView,
 )
 from .averaged_chart_views import MultiMetricHistogramView, CorrelationAnalysisView
+from .environmental_views import DownloadEnvironmentalDataView
 
 
 
@@ -58,5 +59,8 @@ urlpatterns = [
     path('charts/statistical/boxplot/', MultiMetricBoxplotView.as_view(), name='multi-metric-boxplot'),
     path('charts/statistical/histogram/', MultiMetricHistogramView.as_view(), name='multi-metric-histogram'),
     path('charts/statistical/correlation/', CorrelationAnalysisView.as_view(), name='correlation-analysis'),
+
+    # Advanced download API with date range and field selection
+    path('download/environmental-data/', DownloadEnvironmentalDataView.as_view(), name='download-environmental-data'),
 
 ]
