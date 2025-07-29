@@ -63,8 +63,8 @@ class AveragedSnowDepthView(APIView):
                     (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
                 )
             
-            # If no date filters are applied, default to the latest year
-            if not any([year, month, start_date, end_date]):
+            # If no date filters are applied, default to the latest year (except for yearly grouping)
+            if not any([year, month, start_date, end_date]) and group_by != 'year':
                 latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
                 if latest_year:
                     queryset = queryset.filter(Year=latest_year)
@@ -218,8 +218,8 @@ class AveragedAirTemperatureView(APIView):
                     (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
                 )
             
-            # If no date filters are applied, default to the latest year
-            if not any([year, month, start_date, end_date]):
+            # If no date filters are applied, default to the latest year (except for yearly grouping)
+            if not any([year, month, start_date, end_date]) and group_by != 'year':
                 latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
                 if latest_year:
                     queryset = queryset.filter(Year=latest_year)
@@ -347,7 +347,7 @@ class AveragedRainfallView(APIView):
             month = request.query_params.get('month')
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
-            group_by = request.query_params.get('group_by', 'day')  # hour, day, week, month
+            group_by = request.query_params.get('group_by', 'day')  # hour, day, week, month, year
             
             queryset = EnvironmentalData.objects.filter(
                 Rainfall_mm__isnull=False
@@ -373,8 +373,8 @@ class AveragedRainfallView(APIView):
                     (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
                 )
             
-            # If no date filters are applied, default to the latest year
-            if not any([year, month, start_date, end_date]):
+            # If no date filters are applied, default to the latest year (except for yearly grouping)
+            if not any([year, month, start_date, end_date]) and group_by != 'year':
                 latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
                 if latest_year:
                     queryset = queryset.filter(Year=latest_year)
@@ -426,6 +426,26 @@ class AveragedRainfallView(APIView):
                         'avg': round(record['avg_rainfall'], 2),
                         'total': round(record['total_rainfall'], 2),
                         'max': record['max_rainfall']
+                    })
+                    
+            elif group_by == 'year':
+                # For yearly: return data points for each year with calculated averages
+                aggregated_data = queryset.values('Year').annotate(
+                    avg_rainfall=Avg('Rainfall_mm'),
+                    total_rainfall=Sum('Rainfall_mm'),
+                    max_rainfall=Max('Rainfall_mm'),
+                    data_points=Count('id')
+                ).order_by('Year')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'period': str(record['Year']),
+                        'year': record['Year'],
+                        'avg': round(record['avg_rainfall'], 2),
+                        'total': round(record['total_rainfall'], 2),
+                        'max': record['max_rainfall'],
+                        'data_points': record['data_points']
                     })
                     
             elif group_by in ['week', 'weekly']:
@@ -540,8 +560,8 @@ class AveragedSoilTemperatureView(APIView):
                     (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
                 )
             
-            # If no date filters are applied, default to the latest year
-            if not any([year, month, start_date, end_date]):
+            # If no date filters are applied, default to the latest year (except for yearly grouping)
+            if not any([year, month, start_date, end_date]) and group_by != 'year':
                 latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
                 if latest_year:
                     queryset = queryset.filter(Year=latest_year)
@@ -695,8 +715,8 @@ class AveragedHumidityView(APIView):
                     (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
                 )
             
-            # If no date filters are applied, default to the latest year
-            if not any([year, month, start_date, end_date]):
+            # If no date filters are applied, default to the latest year (except for yearly grouping)
+            if not any([year, month, start_date, end_date]) and group_by != 'year':
                 latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
                 if latest_year:
                     queryset = queryset.filter(Year=latest_year)
@@ -850,8 +870,8 @@ class AveragedShortwaveRadiationView(APIView):
                     (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
                 )
             
-            # If no date filters are applied, default to the latest year
-            if not any([year, month, start_date, end_date]):
+            # If no date filters are applied, default to the latest year (except for yearly grouping)
+            if not any([year, month, start_date, end_date]) and group_by != 'year':
                 latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
                 if latest_year:
                     queryset = queryset.filter(Year=latest_year)
@@ -1005,8 +1025,8 @@ class AveragedWindSpeedView(APIView):
                     (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
                 )
             
-            # If no date filters are applied, default to the latest year
-            if not any([year, month, start_date, end_date]):
+            # If no date filters are applied, default to the latest year (except for yearly grouping)
+            if not any([year, month, start_date, end_date]) and group_by != 'year':
                 latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
                 if latest_year:
                     queryset = queryset.filter(Year=latest_year)
@@ -1160,8 +1180,8 @@ class AveragedAtmosphericPressureView(APIView):
                     (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
                 )
             
-            # If no date filters are applied, default to the latest year
-            if not any([year, month, start_date, end_date]):
+            # If no date filters are applied, default to the latest year (except for yearly grouping)
+            if not any([year, month, start_date, end_date]) and group_by != 'year':
                 latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
                 if latest_year:
                     queryset = queryset.filter(Year=latest_year)
