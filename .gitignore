@@ -1,3 +1,6 @@
 # Django DB and local settings
 db.sqlite3
 .env
+
+# POSTER folder
+POSTER/

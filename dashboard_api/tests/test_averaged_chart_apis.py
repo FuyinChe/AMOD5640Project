@@ -129,6 +129,26 @@ def test_averaged_rainfall_chart_api():
             print(f"❌ Failed with status code: {response.status_code}")
     except Exception as e:
         print(f"❌ Error: {str(e)}")
+    
+    # Test 3: Yearly grouping
+    print("\n3. Testing: Rainfall with yearly grouping")
+    try:
+        response = requests.get(f"{BASE_URL}/charts/rainfall/?group_by=year")
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('data') and len(data['data']) > 0:
+                sample = data['data'][0]
+                print(f"✅ Success! Retrieved yearly rainfall data")
+                print(f"   📊 Sample yearly rainfall: {sample}")
+                print(f"   💧 Total rainfall for year: {sample.get('total', 'N/A')} mm")
+                print(f"   📅 Year: {sample.get('year', 'N/A')}")
+                print(f"   📈 Data points: {sample.get('data_points', 'N/A')}")
+            else:
+                print("✅ Success! No yearly rainfall data available")
+        else:
+            print(f"❌ Failed with status code: {response.status_code}")
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
 
 
 def test_averaged_shortwave_radiation_chart_api():
@@ -410,7 +430,8 @@ def test_grouping_options():
     grouping_tests = [
         {'name': 'Daily Grouping', 'group_by': 'day'},
         {'name': 'Weekly Grouping', 'group_by': 'week'},
-        {'name': 'Monthly Grouping', 'group_by': 'month'}
+        {'name': 'Monthly Grouping', 'group_by': 'month'},
+        {'name': 'Yearly Grouping', 'group_by': 'year'}
     ]
     
     for test in grouping_tests:
@@ -418,7 +439,11 @@ def test_grouping_options():
         print("-" * 40)
         
         try:
-            response = requests.get(f"{BASE_URL}/charts/snow-depth/?group_by={test['group_by']}&year=2023")
+            # Use rainfall API for yearly grouping, snow-depth for others
+            if test['group_by'] == 'year':
+                response = requests.get(f"{BASE_URL}/charts/rainfall/?group_by={test['group_by']}")
+            else:
+                response = requests.get(f"{BASE_URL}/charts/snow-depth/?group_by={test['group_by']}&year=2023")
             if response.status_code == 200:
                 data = response.json()
                 if data.get('data') and len(data['data']) > 0:
@@ -435,6 +460,9 @@ def test_grouping_options():
                         print(f"   📊 Week number: {sample['week']}")
                     elif test['group_by'] == 'month' and len(sample['period']) <= 3:
                         print(f"   ✅ Monthly period format correct")
+                    elif test['group_by'] == 'year' and sample['period'].isdigit():
+                        print(f"   ✅ Yearly period format correct")
+                        print(f"   📅 Year: {sample['period']}")
                     else:
                         print(f"   ⚠️  Period format may be incorrect")
                 else:
@@ -461,7 +489,7 @@ Averaged Chart APIs provide time-series aggregated data optimized for interactiv
    - month (optional): Filter by specific month
    - start_date (optional): Start date in YYYY-MM-DD format
    - end_date (optional): End date in YYYY-MM-DD format
-   - group_by (optional): Time grouping (day, week, month, default: day)
+   - group_by (optional): Time grouping (day, week, month, year, default: day)
 
 2. AIR TEMPERATURE CHART API (AVERAGED)
    Endpoint: GET /api/charts/air-temperature/
@@ -517,7 +545,7 @@ Response Format (Averaged):
 Key Features:
 - Default behavior: Returns last year's data
 - Custom date ranges: Users can specify start_date and end_date
-- Time grouping: hour, day, week, or month aggregation
+- Time grouping: hour, day, week, month, or year aggregation
 - Performance optimized: No raw data points, only calculated averages
 - Multiple statistics: avg, max, min, total (where applicable)
 - Appropriate units for each metric
@@ -526,6 +554,7 @@ Example Usage:
 1. Snow depth averages for 2023: GET /api/charts/snow-depth/?year=2023
 2. Air temperature averages for 2023: GET /api/charts/air-temperature/?year=2023
 3. Monthly rainfall totals: GET /api/charts/rainfall/?group_by=month&year=2023
+4. Yearly rainfall totals: GET /api/charts/rainfall/?group_by=year
 4. Daily averages with date range: GET /api/charts/snow-depth/?start_date=2023-01-01&end_date=2023-06-30&group_by=day
 5. Weekly soil temperature: GET /api/charts/soil-temperature/?group_by=week&depth=20cm
 6. Hourly wind speed: GET /api/charts/wind-speed/?group_by=hour&year=2023
