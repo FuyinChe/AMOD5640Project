@@ -26,6 +26,7 @@ from .raw_data_views import (
 
 from .averaged_chart_views import (
     AveragedSnowDepthView,
+    AveragedAirTemperatureView,
     AveragedRainfallView,
     AveragedHumidityView,
     AveragedSoilTemperatureView,

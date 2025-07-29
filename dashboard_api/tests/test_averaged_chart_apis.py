@@ -227,6 +227,74 @@ def test_averaged_wind_speed_chart_api():
         print(f"❌ Error: {str(e)}")
 
 
+def test_averaged_air_temperature_chart_api():
+    """Test the averaged air temperature chart API endpoint"""
+    
+    print("\nTesting Averaged Air Temperature Chart API...")
+    print("=" * 60)
+    
+    # Test 1: Get averaged air temperature data with default grouping (day)
+    print("\n1. Testing: Get averaged air temperature data (default - day grouping)")
+    try:
+        response = requests.get(f"{BASE_URL}/charts/air-temperature/")
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('data') and len(data['data']) > 0:
+                sample = data['data'][0]
+                print(f"✅ Success! Retrieved air temperature data")
+                print(f"   📊 Sample data point: {sample}")
+                
+                # Validate averaged data structure
+                required_fields = ['period', 'avg', 'max', 'min']
+                missing_fields = [field for field in required_fields if field not in sample]
+                if not missing_fields:
+                    print(f"   ✅ All required averaged fields present")
+                    print(f"   Unit: {data.get('unit', 'N/A')}")
+                else:
+                    print(f"   ❌ Missing averaged fields: {missing_fields}")
+            else:
+                print("✅ Success! No data available for the specified period")
+        else:
+            print(f"❌ Failed with status code: {response.status_code}")
+            print(f"   Response: {response.text}")
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+    
+    # Test 2: Monthly grouping
+    print("\n2. Testing: Air temperature with monthly grouping")
+    try:
+        response = requests.get(f"{BASE_URL}/charts/air-temperature/?group_by=month&year=2023")
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('data') and len(data['data']) > 0:
+                sample = data['data'][0]
+                print(f"✅ Success! Retrieved monthly air temperature data")
+                print(f"   📊 Sample monthly data: {sample}")
+            else:
+                print("✅ Success! No monthly data available for 2023")
+        else:
+            print(f"❌ Failed with status code: {response.status_code}")
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+    
+    # Test 3: Date range with daily grouping
+    print("\n3. Testing: Air temperature with date range and daily grouping")
+    try:
+        response = requests.get(f"{BASE_URL}/charts/air-temperature/?start_date=2023-01-01&end_date=2023-01-31&group_by=day")
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('data') and len(data['data']) > 0:
+                sample = data['data'][0]
+                print(f"✅ Success! Retrieved daily air temperature data for January 2023")
+                print(f"   📊 Sample daily data: {sample}")
+            else:
+                print("✅ Success! No daily data available for January 2023")
+        else:
+            print(f"❌ Failed with status code: {response.status_code}")
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+
+
 def test_averaged_atmospheric_pressure_chart_api():
     """Test the averaged atmospheric pressure chart API endpoint"""
     
@@ -395,33 +463,38 @@ Averaged Chart APIs provide time-series aggregated data optimized for interactiv
    - end_date (optional): End date in YYYY-MM-DD format
    - group_by (optional): Time grouping (day, week, month, default: day)
 
-2. RAINFALL CHART API (AVERAGED)
+2. AIR TEMPERATURE CHART API (AVERAGED)
+   Endpoint: GET /api/charts/air-temperature/
+   Parameters: Same as snow depth
+   Returns: Averaged air temperature data in °C
+
+3. RAINFALL CHART API (AVERAGED)
    Endpoint: GET /api/charts/rainfall/
    Parameters: Same as snow depth
    Returns: Averaged and total rainfall data
 
-3. SOIL TEMPERATURE CHART API (AVERAGED)
+4. SOIL TEMPERATURE CHART API (AVERAGED)
    Endpoint: GET /api/charts/soil-temperature/
    Parameters:
    - depth (optional): Soil depth (5cm, 10cm, 20cm, 25cm, 50cm, default: 5cm)
    - Other parameters same as above
 
-4. SHORTWAVE RADIATION CHART API (AVERAGED)
+5. SHORTWAVE RADIATION CHART API (AVERAGED)
    Endpoint: GET /api/charts/shortwave-radiation/
    Parameters: Same as snow depth
    Returns: Averaged shortwave radiation data in W/m²
 
-5. WIND SPEED CHART API (AVERAGED)
+6. WIND SPEED CHART API (AVERAGED)
    Endpoint: GET /api/charts/wind-speed/
    Parameters: Same as snow depth
    Returns: Averaged wind speed data in m/s
 
-6. ATMOSPHERIC PRESSURE CHART API (AVERAGED)
+7. ATMOSPHERIC PRESSURE CHART API (AVERAGED)
    Endpoint: GET /api/charts/atmospheric-pressure/
    Parameters: Same as snow depth
    Returns: Averaged atmospheric pressure data in kPa
 
-7. MULTI-METRIC CHART API (AVERAGED)
+8. MULTI-METRIC CHART API (AVERAGED)
    Endpoint: GET /api/charts/multi-metric/
    Parameters:
    - metrics (optional): Comma-separated metrics (default: air_temp,humidity,wind_speed)
@@ -451,12 +524,13 @@ Key Features:
 
 Example Usage:
 1. Snow depth averages for 2023: GET /api/charts/snow-depth/?year=2023
-2. Monthly rainfall totals: GET /api/charts/rainfall/?group_by=month&year=2023
-3. Daily averages with date range: GET /api/charts/snow-depth/?start_date=2023-01-01&end_date=2023-06-30&group_by=day
-4. Weekly soil temperature: GET /api/charts/soil-temperature/?group_by=week&depth=20cm
-5. Hourly wind speed: GET /api/charts/wind-speed/?group_by=hour&year=2023
-6. Monthly shortwave radiation: GET /api/charts/shortwave-radiation/?group_by=month&year=2023
-7. Weekly atmospheric pressure: GET /api/charts/atmospheric-pressure/?group_by=week&year=2023
+2. Air temperature averages for 2023: GET /api/charts/air-temperature/?year=2023
+3. Monthly rainfall totals: GET /api/charts/rainfall/?group_by=month&year=2023
+4. Daily averages with date range: GET /api/charts/snow-depth/?start_date=2023-01-01&end_date=2023-06-30&group_by=day
+5. Weekly soil temperature: GET /api/charts/soil-temperature/?group_by=week&depth=20cm
+6. Hourly wind speed: GET /api/charts/wind-speed/?group_by=hour&year=2023
+7. Monthly shortwave radiation: GET /api/charts/shortwave-radiation/?group_by=month&year=2023
+8. Weekly atmospheric pressure: GET /api/charts/atmospheric-pressure/?group_by=week&year=2023
 """)
 
 
@@ -467,6 +541,7 @@ def run_all_averaged_chart_tests():
     
     # Run individual test functions
     test_averaged_snow_depth_chart_api()
+    test_averaged_air_temperature_chart_api()
     test_averaged_rainfall_chart_api()
     test_averaged_shortwave_radiation_chart_api()
     test_averaged_wind_speed_chart_api()
