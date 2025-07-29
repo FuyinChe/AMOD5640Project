@@ -7,7 +7,7 @@ from .views import (
     # Raw data views
     RawSnowDepthView, RawRainfallView, RawHumidityView, RawSoilTemperatureView, RawMultiMetricView,
     # Averaged chart views
-    AveragedSnowDepthView, AveragedRainfallView, AveragedHumidityView, AveragedSoilTemperatureView,
+    AveragedSnowDepthView, AveragedAirTemperatureView, AveragedRainfallView, AveragedHumidityView, AveragedSoilTemperatureView,
     AveragedShortwaveRadiationView, AveragedWindSpeedView, AveragedAtmosphericPressureView,
     # Statistical chart views
     MultiMetricBoxplotView,
@@ -48,6 +48,7 @@ urlpatterns = [
     
     # Averaged chart APIs (hourly, daily, monthly)
     path('charts/snow-depth/', AveragedSnowDepthView.as_view(), name='snow-depth-chart'),
+    path('charts/air-temperature/', AveragedAirTemperatureView.as_view(), name='air-temperature-chart'),
     path('charts/rainfall/', AveragedRainfallView.as_view(), name='rainfall-chart'),
     path('charts/humidity/', AveragedHumidityView.as_view(), name='humidity-chart'),
     path('charts/soil-temperature/', AveragedSoilTemperatureView.as_view(), name='soil-temperature-chart'),

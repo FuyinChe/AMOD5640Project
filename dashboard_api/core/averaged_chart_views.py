@@ -180,6 +180,161 @@ class AveragedSnowDepthView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class AveragedAirTemperatureView(APIView):
+    """Averaged air temperature data for charts and dashboards"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request: Request) -> Response:
+        """Get averaged air temperature data over time for charting"""
+        try:
+            # Get query parameters
+            year = request.query_params.get('year')
+            month = request.query_params.get('month')
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            group_by = request.query_params.get('group_by', 'day')  # hour, day, week, month
+            
+            queryset = EnvironmentalData.objects.filter(
+                AirTemperature_degC__isnull=False
+            )
+            
+            # Apply filters
+            if year:
+                queryset = queryset.filter(Year=int(year))
+            if month:
+                queryset = queryset.filter(Month=int(month))
+            if start_date:
+                start_year, start_month, start_day = map(int, start_date.split('-'))
+                queryset = queryset.filter(
+                    Q(Year__gt=start_year) |
+                    (Q(Year=start_year) & Q(Month__gt=start_month)) |
+                    (Q(Year=start_year) & Q(Month=start_month) & Q(Day__gte=start_day))
+                )
+            if end_date:
+                end_year, end_month, end_day = map(int, end_date.split('-'))
+                queryset = queryset.filter(
+                    Q(Year__lt=end_year) |
+                    (Q(Year=end_year) & Q(Month__lt=end_month)) |
+                    (Q(Year=end_year) & Q(Month=end_month) & Q(Day__lte=end_day))
+                )
+            
+            # If no date filters are applied, default to the latest year
+            if not any([year, month, start_date, end_date]):
+                latest_year = EnvironmentalData.objects.aggregate(Max('Year'))['Year__max']
+                if latest_year:
+                    queryset = queryset.filter(Year=latest_year)
+                    year = str(latest_year)  # For response metadata
+            
+            # Group by time period and calculate averages
+            if group_by == 'hour':
+                # For hourly: return exactly 24 data points (0-23 hours) with calculated averages
+                aggregated_data = queryset.annotate(
+                    hour=Substr('Time', 1, 2)  # Extract first 2 characters as hour
+                ).values('hour').annotate(
+                    avg_temperature=Avg('AirTemperature_degC'),
+                    max_temperature=Max('AirTemperature_degC'),
+                    min_temperature=Min('AirTemperature_degC'),
+                    data_points=Count('id')
+                ).order_by('hour')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    try:
+                        hour_int = int(record['hour']) if record['hour'] else 0
+                        chart_data.append({
+                            'period': f"{hour_int:02d}:00",
+                            'avg': round(record['avg_temperature'], 2),
+                            'max': record['max_temperature'],
+                            'min': record['min_temperature']
+                        })
+                    except (ValueError, TypeError):
+                        # Skip records with invalid hour format
+                        continue
+                    
+            elif group_by == 'month':
+                # For monthly: return exactly 12 data points (1-12 months) with calculated averages
+                month_names = {
+                    1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                    7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'
+                }
+                aggregated_data = queryset.values('Month').annotate(
+                    avg_temperature=Avg('AirTemperature_degC'),
+                    max_temperature=Max('AirTemperature_degC'),
+                    min_temperature=Min('AirTemperature_degC'),
+                    data_points=Count('id')
+                ).order_by('Month')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'period': month_names.get(record['Month'], f"{record['Month']:02d}"),
+                        'avg': round(record['avg_temperature'], 2),
+                        'max': record['max_temperature'],
+                        'min': record['min_temperature']
+                    })
+                    
+            elif group_by in ['week', 'weekly']:
+                # For weekly: return exactly 52 data points (1-52 weeks) with calculated averages
+                aggregated_data = queryset.annotate(
+                    date_field=Cast(
+                        Concat(
+                            Cast('Year', output_field=CharField()),
+                            Value('-'),
+                            Cast('Month', output_field=CharField()),
+                            Value('-'),
+                            Cast('Day', output_field=CharField())
+                        ),
+                        output_field=DateField()
+                    )
+                ).annotate(
+                    week=ExtractWeek('date_field')
+                ).values('week').annotate(
+                    avg_temperature=Avg('AirTemperature_degC'),
+                    max_temperature=Max('AirTemperature_degC'),
+                    min_temperature=Min('AirTemperature_degC'),
+                    data_points=Count('id')
+                ).order_by('week')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'week': record['week'],
+                        'avg': round(record['avg_temperature'], 2),
+                        'max': record['max_temperature'],
+                        'min': record['min_temperature']
+                    })
+                    
+            else:  # Default: group by day
+                aggregated_data = queryset.values('Year', 'Month', 'Day').annotate(
+                    avg_temperature=Avg('AirTemperature_degC'),
+                    max_temperature=Max('AirTemperature_degC'),
+                    min_temperature=Min('AirTemperature_degC'),
+                    data_points=Count('id')
+                ).order_by('Year', 'Month', 'Day')
+                
+                chart_data = []
+                for record in aggregated_data:
+                    chart_data.append({
+                        'period': f"{record['Year']}-{record['Month']:02d}-{record['Day']:02d}",
+                        'avg': round(record['avg_temperature'], 2),
+                        'max': record['max_temperature'],
+                        'min': record['min_temperature']
+                    })
+            
+            return Response({
+                'success': True,
+                'data': chart_data,
+                'unit': '°C'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error in AveragedAirTemperatureView: {str(e)}")
+            return Response({
+                'success': False,
+                'error': f'Failed to retrieve averaged air temperature data: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class AveragedRainfallView(APIView):
     """Averaged rainfall data for charts and dashboards"""
     permission_classes = [IsAuthenticated]
