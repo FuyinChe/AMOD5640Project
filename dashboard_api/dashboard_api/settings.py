@@ -106,6 +106,10 @@ WSGI_APPLICATION = 'dashboard_api.wsgi.application'
 
 
 from decouple import config
+import pymysql
+
+# Configure PyMySQL to work with Django
+pymysql.install_as_MySQLdb()
 
 DATABASES = {
     'default': {
